@@ -13,3 +13,6 @@
 [submodule "lib/uniswap-poor-oracle"]
 	path = lib/uniswap-poor-oracle
 	url = https://github.com/timeless-fi/uniswap-poor-oracle
+[submodule "lib/popcorn"]
+	path = lib/popcorn
+	url = https://github.com/Popcorn-Limited/contracts
