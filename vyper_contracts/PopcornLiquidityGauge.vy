@@ -1,6 +1,6 @@
 # @version 0.3.7
 """
-@title Timeless Liquidity Gauge
+@title Popcorn Liquidity Gauge
 @author Curve Finance
 @license MIT
 @notice Modified to give 0 rewards to those without vote-locked tokens
@@ -956,7 +956,7 @@ def initialize(_lp_token: address, relative_weight_cap: uint256, _voting_escrow_
     self.position_key = _position_key
 
     symbol: String[32] = ERC20Extended(_lp_token).symbol()
-    name: String[64] = concat("Timeless ", symbol, " Gauge Deposit")
+    name: String[64] = concat("Popcorn", symbol, " Gauge Deposit")
 
     self.name = name
     self.symbol = concat(symbol, "-gauge")

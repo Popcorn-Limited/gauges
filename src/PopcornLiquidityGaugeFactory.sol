@@ -21,10 +21,10 @@ import {Bytes32AddressLib} from "solmate/utils/Bytes32AddressLib.sol";
 import {BaseGaugeFactory} from "./BaseGaugeFactory.sol";
 import {ILiquidityGauge} from "./interfaces/ILiquidityGauge.sol";
 
-contract TimelessLiquidityGaugeFactory is BaseGaugeFactory {
+contract PopcornLiquidityGaugeFactory is BaseGaugeFactory {
     using Bytes32AddressLib for address;
 
-    error TimelessLiquidityGaugeFactory__InvalidBunniKey();
+    error PopcornLiquidityGaugeFactory__InvalidBunniKey();
 
     address public immutable gaugeAdmin;
     IBunniHub public immutable bunniHub;
@@ -48,9 +48,10 @@ contract TimelessLiquidityGaugeFactory is BaseGaugeFactory {
      * @return The address of the deployed gauge
      */
     function create(BunniKey calldata key, uint256 relativeWeightCap) external returns (address) {
+        // @audit lpToken will be the vault LP token
         address lpToken = address(bunniHub.getBunniToken(key));
         if (lpToken == address(0)) {
-            revert TimelessLiquidityGaugeFactory__InvalidBunniKey();
+            revert PopcornLiquidityGaugeFactory__InvalidBunniKey();
         }
 
         address gauge = _create(lpToken.fillLast12Bytes());
