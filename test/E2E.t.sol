@@ -14,7 +14,7 @@ import "forge-std/Test.sol";
 
 import {WETH} from "solmate/tokens/WETH.sol";
 
-import {UniswapPoorOracle} from "uniswap-poor-oracle/UniswapPoorOracle.sol";
+import {UniswapPoorOracle} from "uniswap-poor-oracle/src/UniswapPoorOracle.sol";
 
 import {Minter} from "../src/Minter.sol";
 import {TokenAdmin} from "../src/TokenAdmin.sol";
@@ -26,7 +26,7 @@ import {IERC20Mintable} from "../src/interfaces/IERC20Mintable.sol";
 import {ILiquidityGauge} from "../src/interfaces/ILiquidityGauge.sol";
 import {IGaugeController} from "../src/interfaces/IGaugeController.sol";
 import {IVotingEscrowDelegation} from "../src/interfaces/IVotingEscrowDelegation.sol";
-import {TimelessLiquidityGaugeFactory} from "../src/TimelessLiquidityGaugeFactory.sol";
+import {PopcornLiquidityGaugeFactory} from "../src/PopcornLiquidityGaugeFactory.sol";
 
 contract E2ETest is Test, UniswapDeployer {
     uint24 constant FEE = 500;
@@ -61,7 +61,7 @@ contract E2ETest is Test, UniswapDeployer {
     IUniswapV3Factory uniswapFactory;
     IGaugeController gaugeController;
     IVotingEscrowDelegation veDelegation;
-    TimelessLiquidityGaugeFactory factory;
+    PopcornLiquidityGaugeFactory factory;
     SmartWalletChecker smartWalletChecker;
 
     function setUp() public {
@@ -83,7 +83,7 @@ contract E2ETest is Test, UniswapDeployer {
         tokenAdmin = new TokenAdmin(mockToken, Minter(minterAddress), tokenAdminOwner);
         votingEscrow = IVotingEscrow(
             vyperDeployer.deployContract(
-                "VotingEscrow", abi.encode(mockToken, "Timeless Voting Escrow", "veTIT", votingEscrowAdmin)
+                "VotingEscrow", abi.encode(mockToken, "Popcorn Voting Escrow", "veTIT", votingEscrowAdmin)
             )
         );
         gaugeController = IGaugeController(
@@ -94,15 +94,15 @@ contract E2ETest is Test, UniswapDeployer {
         veDelegation = IVotingEscrowDelegation(
             vyperDeployer.deployContract(
                 "VotingEscrowDelegation",
-                abi.encode(votingEscrow, "Timeless VE-Delegation", "veTIT-BOOST", "", veDelegationAdmin)
+                abi.encode(votingEscrow, "Popcorn VE-Delegation", "veTIT-BOOST", "", veDelegationAdmin)
             )
         );
         oracle = new UniswapPoorOracle(IN_RANGE_THRESHOLD, RECORDING_MIN_LENGTH, RECORDING_MAX_LENGTH);
         ILiquidityGauge liquidityGaugeTemplate =
-            ILiquidityGauge(vyperDeployer.deployContract("TimelessLiquidityGauge", abi.encode(minter, oracle)));
+            ILiquidityGauge(vyperDeployer.deployContract("PopcornLiquidityGauge", abi.encode(minter, oracle)));
         uniswapFactory = IUniswapV3Factory(deployUniswapV3Factory());
         bunniHub = new BunniHub(uniswapFactory, bunniHubOwner, 0);
-        factory = new TimelessLiquidityGaugeFactory(liquidityGaugeTemplate, gaugeAdmin, address(veDelegation), bunniHub);
+        factory = new PopcornLiquidityGaugeFactory(liquidityGaugeTemplate, gaugeAdmin, address(veDelegation), bunniHub);
         weth = new WETH();
         router = new SwapRouter(address(uniswapFactory), address(weth));
 
@@ -550,5 +550,29 @@ contract E2ETest is Test, UniswapDeployer {
         assertEq(bunniToken.balanceOf(address(this)), amount, "user didn't receive LP tokens after withdraw");
         assertEq(bunniToken.balanceOf(address(gauge)), 0, "gauge still has LP tokens after withdraw");
         assertEq(gauge.balanceOf(address(this)), 0, "user still has gauge tokens after withdraw");
+    }
+
+    function test_votingEscrow_earlyWithdrawal() external {
+        // lock tokens in voting escrow
+        mockToken.mint(address(this), 1 ether);
+        mockToken.approve(address(votingEscrow), type(uint256).max);
+        votingEscrow.create_lock(1 ether, block.timestamp + 200 weeks);
+
+        skip(199 weeks);
+
+        votingEscrow.withdraw();
+        assertEq(mockToken.balanceOf(address(this)), 0.75 ether, "should get a penalty for withdrawing early");
+    }
+
+    function test_votingEscrow_orderlyWithdrawal() external {
+        // lock tokens in voting escrow
+        mockToken.mint(address(this), 1 ether);
+        mockToken.approve(address(votingEscrow), type(uint256).max);
+        votingEscrow.create_lock(1 ether, block.timestamp + 200 weeks);
+
+        skip(200 weeks + 1);
+
+        votingEscrow.withdraw();
+        assertEq(mockToken.balanceOf(address(this)), 1 ether, "should get a penalty for withdrawing early");
     }
 }

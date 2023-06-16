@@ -69,6 +69,11 @@ event Withdraw:
     value: uint256
     ts: uint256
 
+event Penalty:
+    provider: indexed(address)
+    value: uint256
+    ts: uint256
+
 event Supply:
     prevSupply: uint256
     supply: uint256
@@ -465,8 +470,10 @@ def withdraw():
     @dev Only possible if the lock has expired
     """
     _locked: LockedBalance = self.locked[msg.sender]
-    assert block.timestamp >= _locked.end, "The lock didn't expire"
     value: uint256 = convert(_locked.amount, uint256)
+    penalty: uint256 = 0
+    if block.timestamp < _locked.end:
+        penalty = value / 4
 
     old_locked: LockedBalance = _locked
     _locked.end = 0
@@ -480,9 +487,15 @@ def withdraw():
     # Both can have >= 0 amount
     self._checkpoint(msg.sender, old_locked, _locked)
 
-    assert ERC20(TOKEN).transfer(msg.sender, value)
+    if penalty > 0:
+        # send remaining funds to admin
+        # TODO: maybe send to treasury instead?
+        assert ERC20(TOKEN).transfer(self.admin, penalty)
+        log Penalty(msg.sender, penalty, block.timestamp)
 
-    log Withdraw(msg.sender, value, block.timestamp)
+    assert ERC20(TOKEN).transfer(msg.sender, value - penalty)
+
+    log Withdraw(msg.sender, value - penalty, block.timestamp)
     log Supply(supply_before, supply_before - value)
 
 
