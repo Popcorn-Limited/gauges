@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import "bunni/src/BunniHub.sol";
+import {IVaultRegistry, VaultMetadata} from "popcorn/src/interfaces/vault/IVaultRegistry.sol";
 
 import {Minter} from "../src/Minter.sol";
 import {TokenAdmin} from "../src/TokenAdmin.sol";
@@ -84,13 +84,13 @@ contract DeployScript is CREATE3Script, VyperDeployer {
             )
         );
         {
-            BunniHub bunniHub = BunniHub(vm.envAddress("BUNNI_HUB"));
+            IVaultRegistry vaultRegistry = IVaultRegistry(vm.envAddress("VAULT_REGISTRY"));
             factory = PopcornLiquidityGaugeFactory(
                 create3.deploy(
                     getCreate3ContractSalt("PopcornLiquidityGaugeFactory"),
                     bytes.concat(
                         type(PopcornLiquidityGaugeFactory).creationCode,
-                        abi.encode(liquidityGaugeTemplate, admin, veDelegation, bunniHub)
+                        abi.encode(liquidityGaugeTemplate, admin, veDelegation, vaultRegistry)
                     )
                 )
             );
