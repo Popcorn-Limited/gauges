@@ -79,8 +79,7 @@ interface ILiquidityGauge {
         address lpToken,
         uint256 relativeWeightCap,
         address votingEscrowDelegation,
-        address admin,
-        bytes32 positionKey
+        address admin
     ) external;
 
     function change_pending_admin(address newPendingAdmin) external;
