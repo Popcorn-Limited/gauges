@@ -467,7 +467,7 @@ def increase_unlock_time(_unlock_time: uint256):
 def withdraw():
     """
     @notice Withdraw all tokens for `msg.sender`
-    @dev Only possible if the lock has expired
+    @dev If lock hasn't expired yet, a 25% penalty is issued
     """
     _locked: LockedBalance = self.locked[msg.sender]
     value: uint256 = convert(_locked.amount, uint256)
