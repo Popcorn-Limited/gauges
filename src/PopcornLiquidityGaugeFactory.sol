@@ -14,7 +14,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IVaultRegistry, VaultMetadata} from "popcorn/src/interfaces/vualt/IVaultRegistry.sol";
+import {IVaultRegistry, VaultMetadata} from "popcorn/src/interfaces/vault/IVaultRegistry.sol";
 
 import {Bytes32AddressLib} from "solmate/utils/Bytes32AddressLib.sol";
 
