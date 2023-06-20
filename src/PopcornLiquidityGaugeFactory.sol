@@ -43,7 +43,6 @@ contract PopcornLiquidityGaugeFactory is BaseGaugeFactory {
 
     /**
      * @notice Deploys a new gauge.
-     * @param key The Bunni key of the LP token for which to deploy a gauge
      * @param relativeWeightCap The relative weight cap for the created gauge
      * @return The address of the deployed gauge
      */
