@@ -415,4 +415,21 @@ contract E2ETest is Test {
         vm.expectRevert();
         ILiquidityGauge(factory.create(address(vault), 1 ether));
     }
+
+    function test_votingEscrow_maxTime() external {
+        mockToken.mint(address(this), 1 ether);
+        mockToken.approve(address(votingEscrow), type(uint256).max);
+        votingEscrow.create_lock(1 ether, block.timestamp + 4 * 365 * 1 days);
+
+        uint bal = votingEscrow.balanceOf(address(this));
+
+        assertApproxEqRel(bal, 1 ether, 5e15, "doesn't provide max balance");
+    }
+
+    function test_votingEscrow_cannotExceedMaxTime() external {
+        mockToken.mint(address(this), 1 ether);
+        mockToken.approve(address(votingEscrow), type(uint256).max);
+        vm.expectRevert("Voting lock can be 4 year max");
+        votingEscrow.create_lock(1 ether, block.timestamp + 4 * 365 * 1 days + 1 weeks);
+    }
 }
