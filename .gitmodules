@@ -10,3 +10,6 @@
 [submodule "lib/popcorn"]
 	path = lib/popcorn
 	url = https://github.com/Popcorn-Limited/contracts
+[submodule "lib/create3-factory"]
+	path = lib/create3-factory
+	url = https://github.com/ZeframLou/create3-factory
