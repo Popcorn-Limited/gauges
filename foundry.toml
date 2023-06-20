@@ -3,6 +3,11 @@ ffi = true
 optimizer_runs = 1000000
 remappings = [
   "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+  # foundry seems to have issues with nested dependencies. 
+  # We import VaultRegistry which imports IERC4626 from its own dependencies.
+  # Foundry fails to compute the correct path. By adding it to the root
+  # project's remappings we can work around the issue. If it's fixed in the future we should update the repo.
+  'openzeppelin-contracts-upgradeable/=lib/popcorn/lib/openzeppelin-contracts-upgradeable/contracts',
 ]
 verbosity = 1
 
