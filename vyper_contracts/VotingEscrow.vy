@@ -6,7 +6,7 @@
 @notice Votes have a weight depending on time, so that users are
         committed to the future of (whatever they are voting for)
 @dev Vote weight decays linearly over time. Lock time cannot be
-     more than `MAXTIME` (1 year).
+     more than `MAXTIME` (4 year).
 """
 
 # Voting escrow to have time-weighted votes
@@ -65,6 +65,11 @@ event Deposit:
     ts: uint256
 
 event Withdraw:
+    provider: indexed(address)
+    value: uint256
+    ts: uint256
+
+event Penalty:
     provider: indexed(address)
     value: uint256
     ts: uint256
@@ -415,7 +420,7 @@ def create_lock(_value: uint256, _unlock_time: uint256):
     assert _value > 0  # dev: need non-zero value
     assert _locked.amount == 0, "Withdraw old tokens first"
     assert unlock_time > block.timestamp, "Can only lock until time in the future"
-    assert unlock_time <= block.timestamp + MAXTIME, "Voting lock can be 1 year max"
+    assert unlock_time <= block.timestamp + MAXTIME, "Voting lock can be 4 year max"
 
     self._deposit_for(msg.sender, _value, unlock_time, _locked, CREATE_LOCK_TYPE)
 
@@ -462,11 +467,13 @@ def increase_unlock_time(_unlock_time: uint256):
 def withdraw():
     """
     @notice Withdraw all tokens for `msg.sender`
-    @dev Only possible if the lock has expired
+    @dev If lock hasn't expired yet, a 25% penalty is issued
     """
     _locked: LockedBalance = self.locked[msg.sender]
-    assert block.timestamp >= _locked.end, "The lock didn't expire"
     value: uint256 = convert(_locked.amount, uint256)
+    penalty: uint256 = 0
+    if block.timestamp < _locked.end:
+        penalty = value / 4
 
     old_locked: LockedBalance = _locked
     _locked.end = 0
@@ -480,9 +487,15 @@ def withdraw():
     # Both can have >= 0 amount
     self._checkpoint(msg.sender, old_locked, _locked)
 
-    assert ERC20(TOKEN).transfer(msg.sender, value)
+    if penalty > 0:
+        # send remaining funds to admin
+        # TODO: maybe send to treasury instead?
+        assert ERC20(TOKEN).transfer(self.admin, penalty)
+        log Penalty(msg.sender, penalty, block.timestamp)
 
-    log Withdraw(msg.sender, value, block.timestamp)
+    assert ERC20(TOKEN).transfer(msg.sender, value - penalty)
+
+    log Withdraw(msg.sender, value - penalty, block.timestamp)
     log Supply(supply_before, supply_before - value)
 
 

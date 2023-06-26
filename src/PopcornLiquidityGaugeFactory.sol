@@ -14,48 +14,46 @@
 
 pragma solidity ^0.8.0;
 
-import "bunni/src/interfaces/IBunniHub.sol";
+import {IVaultRegistry, VaultMetadata} from "popcorn/src/interfaces/vault/IVaultRegistry.sol";
 
 import {Bytes32AddressLib} from "solmate/utils/Bytes32AddressLib.sol";
 
 import {BaseGaugeFactory} from "./BaseGaugeFactory.sol";
 import {ILiquidityGauge} from "./interfaces/ILiquidityGauge.sol";
 
-contract TimelessLiquidityGaugeFactory is BaseGaugeFactory {
+contract PopcornLiquidityGaugeFactory is BaseGaugeFactory {
     using Bytes32AddressLib for address;
 
-    error TimelessLiquidityGaugeFactory__InvalidBunniKey();
+    error PopcornLiquidityGaugeFactory__InvalidVault();
 
     address public immutable gaugeAdmin;
-    IBunniHub public immutable bunniHub;
+    IVaultRegistry public immutable popcornVaultRegistry;
     address public immutable votingEscrowDelegation;
 
     constructor(
         ILiquidityGauge gaugeTemplate,
         address gaugeAdmin_,
         address votingEscrowDelegation_,
-        IBunniHub bunniHub_
+        IVaultRegistry popcornVaultRegistry_
     ) BaseGaugeFactory(gaugeTemplate) {
-        bunniHub = bunniHub_;
+        popcornVaultRegistry = popcornVaultRegistry_;
         gaugeAdmin = gaugeAdmin_;
         votingEscrowDelegation = votingEscrowDelegation_;
     }
 
     /**
      * @notice Deploys a new gauge.
-     * @param key The Bunni key of the LP token for which to deploy a gauge
      * @param relativeWeightCap The relative weight cap for the created gauge
      * @return The address of the deployed gauge
      */
-    function create(BunniKey calldata key, uint256 relativeWeightCap) external returns (address) {
-        address lpToken = address(bunniHub.getBunniToken(key));
-        if (lpToken == address(0)) {
-            revert TimelessLiquidityGaugeFactory__InvalidBunniKey();
-        }
+    function create(address vaultAddr, uint256 relativeWeightCap) external returns (address) {
+        VaultMetadata memory vault = popcornVaultRegistry.getVault(vaultAddr);
+        if (vault.vault != vaultAddr) revert PopcornLiquidityGaugeFactory__InvalidVault();
 
-        address gauge = _create(lpToken.fillLast12Bytes());
+        // this will fail if there's a gauge for the given vault.
+        address gauge = _create(vaultAddr.fillLast12Bytes());
         ILiquidityGauge(gauge).initialize(
-            lpToken, relativeWeightCap, votingEscrowDelegation, gaugeAdmin, keccak256(abi.encode(key))
+            vaultAddr, relativeWeightCap, votingEscrowDelegation, gaugeAdmin
         );
         return gauge;
     }

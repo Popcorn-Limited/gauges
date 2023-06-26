@@ -1,6 +1,6 @@
 # @version 0.3.7
 """
-@title Timeless Liquidity Gauge
+@title Popcorn Liquidity Gauge
 @author Curve Finance
 @license MIT
 @notice Modified to give 0 rewards to those without vote-locked tokens
@@ -37,9 +37,6 @@ interface VotingEscrow:
 
 interface VotingEscrowDelegation:
     def adjusted_balance_of(_account: address) -> uint256: view
-
-interface UniswapPoorOracle:
-    def getPositionStateFromKey(key: bytes32) -> uint256: view
 
 
 event Deposit:
@@ -106,7 +103,6 @@ TOKEN_ADMIN: immutable(address)
 GAUGE_CONTROLLER: immutable(address)
 MINTER: immutable(address)
 VOTING_ESCROW: immutable(address)
-UNISWAP_POOR_ORACLE: immutable(UniswapPoorOracle)
 
 MAX_RELATIVE_WEIGHT_CAP: constant(uint256) = 10 ** 18
 
@@ -131,7 +127,6 @@ nonces: public(HashMap[address, uint256])
 # Gauge
 lp_token: public(address)
 gauge_state: public(uint8)
-position_key: public(bytes32)
 
 # [future_epoch_time uint40][inflation_rate uint216]
 inflation_params: uint256
@@ -174,7 +169,7 @@ integrate_inv_supply: public(uint256[100000000000000000000000000000])  # bump ep
 _relative_weight_cap: uint256
 
 @external
-def __init__(minter: address, uniswap_poor_oracle: UniswapPoorOracle):
+def __init__(minter: address):
     """
     @param minter The Minter contract used for minting reward tokens
     """
@@ -184,7 +179,6 @@ def __init__(minter: address, uniswap_poor_oracle: UniswapPoorOracle):
     GAUGE_CONTROLLER = gaugeController
     MINTER = minter
     VOTING_ESCROW = Controller(gaugeController).voting_escrow()
-    UNISWAP_POOR_ORACLE = uniswap_poor_oracle
 
     # prevent initialization of implementation
     self.lp_token = 0x000000000000000000000000000000000000dEaD
@@ -737,16 +731,6 @@ def set_reward_distributor(_reward_token: address, _distributor: address):
 
 
 @external
-def makeGaugePermissionless():
-    """
-    @notice Uses the Uniswap Poor oracle to decide whether a gauge is alive
-    """
-    assert msg.sender == self.admin  # dev: only owner
-
-    self.gauge_state = 0 # PERMISSIONLESS
-
-
-@external
 def killGauge():
     """
     @notice Kills the gauge so it always yields a rate of 0 and so cannot mint rewards
@@ -920,14 +904,7 @@ def is_killed() -> bool:
 @internal
 @view
 def _is_killed() -> bool:
-    _gauge_state: uint8 = self.gauge_state
-
-    if _gauge_state == 0:
-        # PERMISSIONLESS
-        return UNISWAP_POOR_ORACLE.getPositionStateFromKey(self.position_key) == 2 # PositionState.OUT_OF_RANGE
-    else:
-        # DEAD or ALIVE
-        return _gauge_state == 1 # DEAD
+    return self.gauge_state == 1 # 1 == DEAD, 2 == ALIVE
 
 
 # Initializer
@@ -939,24 +916,22 @@ def _setRelativeWeightCap(relative_weight_cap: uint256):
     log RelativeWeightCapChanged(relative_weight_cap)
 
 @external
-def initialize(_lp_token: address, relative_weight_cap: uint256, _voting_escrow_delegation: address, _admin: address, _position_key: bytes32):
+def initialize(_lp_token: address, relative_weight_cap: uint256, _voting_escrow_delegation: address, _admin: address):
     """
     @notice Contract constructor
     @param _lp_token Liquidity Pool contract address
     @param relative_weight_cap The initial relative weight cap
     @param _voting_escrow_delegation The VotingEscrowDelegation contract used for delegating boosts
     @param _admin The initial admin address
-    @param _position_key The position key of the Uniswap v3 position used by the gauge in the Poor oracle
     """
     assert self.lp_token == empty(address)
 
     self.admin = _admin
     self.lp_token = _lp_token
     self.voting_escrow_delegation = _voting_escrow_delegation
-    self.position_key = _position_key
 
     symbol: String[32] = ERC20Extended(_lp_token).symbol()
-    name: String[64] = concat("Timeless ", symbol, " Gauge Deposit")
+    name: String[64] = concat("Popcorn", symbol, " Gauge Deposit")
 
     self.name = name
     self.symbol = concat(symbol, "-gauge")

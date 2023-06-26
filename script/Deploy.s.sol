@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import "bunni/src/BunniHub.sol";
+import {IVaultRegistry, VaultMetadata} from "popcorn/src/interfaces/vault/IVaultRegistry.sol";
 
 import {Minter} from "../src/Minter.sol";
 import {TokenAdmin} from "../src/TokenAdmin.sol";
@@ -12,7 +12,7 @@ import {IVotingEscrow} from "../src/interfaces/IVotingEscrow.sol";
 import {IERC20Mintable} from "../src/interfaces/IERC20Mintable.sol";
 import {ILiquidityGauge} from "../src/interfaces/ILiquidityGauge.sol";
 import {IGaugeController} from "../src/interfaces/IGaugeController.sol";
-import {TimelessLiquidityGaugeFactory} from "../src/TimelessLiquidityGaugeFactory.sol";
+import {PopcornLiquidityGaugeFactory} from "../src/PopcornLiquidityGaugeFactory.sol";
 
 contract DeployScript is CREATE3Script, VyperDeployer {
     constructor() CREATE3Script(vm.envString("VERSION")) {}
@@ -24,7 +24,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
             TokenAdmin tokenAdmin,
             IVotingEscrow votingEscrow,
             IGaugeController gaugeController,
-            TimelessLiquidityGaugeFactory factory,
+            PopcornLiquidityGaugeFactory factory,
             SmartWalletChecker smartWalletChecker
         )
     {
@@ -50,7 +50,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
                 create3.deploy(
                     getCreate3ContractSalt("VotingEscrow"),
                     bytes.concat(
-                        compileContract("VotingEscrow"), abi.encode(lockToken, "Timeless Voting Escrow", "veLIT", admin)
+                        compileContract("VotingEscrow"), abi.encode(lockToken, "Popcorn Voting Escrow", "veLIT", admin)
                     )
                 )
             );
@@ -71,26 +71,26 @@ contract DeployScript is CREATE3Script, VyperDeployer {
             getCreate3ContractSalt("VotingEscrowDelegation"),
             bytes.concat(
                 compileContract("VotingEscrowDelegation"),
-                abi.encode(votingEscrow, "Timeless VE-Delegation", "veLIT-BOOST", "", admin)
+                abi.encode(votingEscrow, "Popcorn VE-Delegation", "veLIT-BOOST", "", admin)
             )
         );
         ILiquidityGauge liquidityGaugeTemplate = ILiquidityGauge(
             create3.deploy(
-                getCreate3ContractSalt("TimelessLiquidityGauge"),
+                getCreate3ContractSalt("PopcornLiquidityGauge"),
                 bytes.concat(
-                    compileContract("TimelessLiquidityGauge"),
+                    compileContract("PopcornLiquidityGauge"),
                     abi.encode(minter, getCreate3Contract("UniswapPoorOracle"))
                 )
             )
         );
         {
-            BunniHub bunniHub = BunniHub(vm.envAddress("BUNNI_HUB"));
-            factory = TimelessLiquidityGaugeFactory(
+            IVaultRegistry vaultRegistry = IVaultRegistry(vm.envAddress("VAULT_REGISTRY"));
+            factory = PopcornLiquidityGaugeFactory(
                 create3.deploy(
-                    getCreate3ContractSalt("TimelessLiquidityGaugeFactory"),
+                    getCreate3ContractSalt("PopcornLiquidityGaugeFactory"),
                     bytes.concat(
-                        type(TimelessLiquidityGaugeFactory).creationCode,
-                        abi.encode(liquidityGaugeTemplate, admin, veDelegation, bunniHub)
+                        type(PopcornLiquidityGaugeFactory).creationCode,
+                        abi.encode(liquidityGaugeTemplate, admin, veDelegation, vaultRegistry)
                     )
                 )
             );
