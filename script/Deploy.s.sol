@@ -28,12 +28,11 @@ contract DeployScript is CREATE3Script, VyperDeployer {
             SmartWalletChecker smartWalletChecker
         )
     {
-        uint256 deployerPrivateKey = uint256(vm.envBytes32("PRIVATE_KEY"));
-        vm.startBroadcast(deployerPrivateKey);
-
         address admin = vm.envAddress("ADMIN");
+        vm.startBroadcast(admin);
 
         {
+            // TODO: should be deployed fresh for actual release
             IERC20Mintable rewardToken = IERC20Mintable(getCreate3Contract("OptionsToken"));
             tokenAdmin = TokenAdmin(
                 create3.deploy(
@@ -50,7 +49,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
                 create3.deploy(
                     getCreate3ContractSalt("VotingEscrow"),
                     bytes.concat(
-                        compileContract("VotingEscrow"), abi.encode(lockToken, "Popcorn Voting Escrow", "veLIT", admin)
+                        compileContract("VotingEscrow"), abi.encode(lockToken, "Popcorn Voting Escrow", "vePOP", admin)
                     )
                 )
             );
@@ -71,7 +70,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
             getCreate3ContractSalt("VotingEscrowDelegation"),
             bytes.concat(
                 compileContract("VotingEscrowDelegation"),
-                abi.encode(votingEscrow, "Popcorn VE-Delegation", "veLIT-BOOST", "", admin)
+                abi.encode(votingEscrow, "Popcorn VE-Delegation", "vePOP-BOOST", "", admin)
             )
         );
         ILiquidityGauge liquidityGaugeTemplate = ILiquidityGauge(
@@ -79,7 +78,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
                 getCreate3ContractSalt("PopcornLiquidityGauge"),
                 bytes.concat(
                     compileContract("PopcornLiquidityGauge"),
-                    abi.encode(minter, getCreate3Contract("UniswapPoorOracle"))
+                    abi.encode(minter)
                 )
             )
         );
@@ -107,7 +106,9 @@ contract DeployScript is CREATE3Script, VyperDeployer {
 
         // NOTE: The admin still needs to
         // - Activate inflation in tokenAdmin
-        // - Add smart wallet checker to votingEscrow
+
+        votingEscrow.commit_smart_wallet_checker(address(smartWalletChecker));
+        votingEscrow.apply_smart_wallet_checker();
 
         vm.stopBroadcast();
     }

@@ -15,8 +15,7 @@ abstract contract CREATE3Script is Script {
     }
 
     function getCreate3Contract(string memory name) internal view virtual returns (address) {
-        uint256 deployerPrivateKey = uint256(vm.envBytes32("PRIVATE_KEY"));
-        address deployer = vm.addr(deployerPrivateKey);
+        address deployer = vm.envAddress("ADMIN");
 
         return create3.getDeployed(deployer, getCreate3ContractSalt(name));
     }
