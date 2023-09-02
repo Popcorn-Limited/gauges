@@ -35,7 +35,7 @@ interface VotingEscrow:
     def user_point_epoch(addr: address) -> uint256: view
     def user_point_history__ts(addr: address, epoch: uint256) -> uint256: view
 
-interface VotingEscrowDelegation:
+interface DelegationProxy:
     def adjusted_balance_of(_account: address) -> uint256: view
 
 
@@ -103,6 +103,7 @@ TOKEN_ADMIN: immutable(address)
 GAUGE_CONTROLLER: immutable(address)
 MINTER: immutable(address)
 VOTING_ESCROW: immutable(address)
+DELEGATION_PROXY: immutable(address)
 
 MAX_RELATIVE_WEIGHT_CAP: constant(uint256) = 10 ** 18
 
@@ -110,7 +111,6 @@ tokenless_production: public(uint8)
 
 pending_admin: public(address)
 admin: public(address)
-voting_escrow_delegation: public(address)
 
 # ERC20
 balanceOf: public(HashMap[address, uint256])
@@ -169,7 +169,7 @@ integrate_inv_supply: public(uint256[100000000000000000000000000000])  # bump ep
 _relative_weight_cap: uint256
 
 @external
-def __init__(minter: address):
+def __init__(minter: address, delegation_proxy: address):
     """
     @param minter The Minter contract used for minting reward tokens
     """
@@ -179,6 +179,7 @@ def __init__(minter: address):
     GAUGE_CONTROLLER = gaugeController
     MINTER = minter
     VOTING_ESCROW = Controller(gaugeController).voting_escrow()
+    DELEGATION_PROXY = delegation_proxy
 
     # prevent initialization of implementation
     self.lp_token = 0x000000000000000000000000000000000000dEaD
@@ -330,15 +331,7 @@ def _checkpoint_rewards(_user: address, _total_supply: uint256, _claim: bool, _r
 
 @internal
 def _voting_balance_of(addr: address) -> uint256:
-    voting_escrow_delegation: address = self.voting_escrow_delegation
-    if voting_escrow_delegation == empty(address):
-        # no delegation
-        # use vetoken balance directly
-        return ERC20(VOTING_ESCROW).balanceOf(addr)
-    else:
-        # has delegation
-        # use adjusted balance
-        return VotingEscrowDelegation(voting_escrow_delegation).adjusted_balance_of(addr)
+    return DelegationProxy(DELEGATION_PROXY).adjusted_balance_of(addr)
 
 
 @internal
@@ -916,19 +909,17 @@ def _setRelativeWeightCap(relative_weight_cap: uint256):
     log RelativeWeightCapChanged(relative_weight_cap)
 
 @external
-def initialize(_lp_token: address, relative_weight_cap: uint256, _voting_escrow_delegation: address, _admin: address):
+def initialize(_lp_token: address, relative_weight_cap: uint256, _admin: address):
     """
     @notice Contract constructor
     @param _lp_token Liquidity Pool contract address
     @param relative_weight_cap The initial relative weight cap
-    @param _voting_escrow_delegation The VotingEscrowDelegation contract used for delegating boosts
     @param _admin The initial admin address
     """
     assert self.lp_token == empty(address)
 
     self.admin = _admin
     self.lp_token = _lp_token
-    self.voting_escrow_delegation = _voting_escrow_delegation
 
     symbol: String[32] = ERC20Extended(_lp_token).symbol()
     name: String[64] = concat("Popcorn", symbol, " Gauge Deposit")
