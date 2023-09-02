@@ -23,6 +23,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
             Minter minter,
             TokenAdmin tokenAdmin,
             IVotingEscrow votingEscrow,
+            address delegationProxy,
             IGaugeController gaugeController,
             PopcornLiquidityGaugeFactory factory,
             SmartWalletChecker smartWalletChecker
@@ -66,19 +67,28 @@ contract DeployScript is CREATE3Script, VyperDeployer {
                 bytes.concat(type(Minter).creationCode, abi.encode(tokenAdmin, gaugeController))
             )
         );
-        address veDelegation = create3.deploy(
-            getCreate3ContractSalt("VotingEscrowDelegation"),
+        address boostV2 = create3.deploy(
+            getCreate3ContractSalt("BoostV2"),
             bytes.concat(
-                compileContract("VotingEscrowDelegation"),
-                abi.encode(votingEscrow, "Popcorn VE-Delegation", "vePOP-BOOST", "", admin)
+                compileContract("BoostV2"),
+                abi.encode(votingEscrow)
             )
         );
+        {
+            delegationProxy = create3.deploy(
+                getCreate3ContractSalt("DelegationProxy"),
+                bytes.concat(
+                    compileContract("DelegationProxy"),
+                    abi.encode(votingEscrow, boostV2, admin, admin)
+                )
+            );
+        }
         ILiquidityGauge liquidityGaugeTemplate = ILiquidityGauge(
             create3.deploy(
                 getCreate3ContractSalt("PopcornLiquidityGauge"),
                 bytes.concat(
                     compileContract("PopcornLiquidityGauge"),
-                    abi.encode(minter)
+                    abi.encode(minter, delegationProxy)
                 )
             )
         );
@@ -89,7 +99,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
                     getCreate3ContractSalt("PopcornLiquidityGaugeFactory"),
                     bytes.concat(
                         type(PopcornLiquidityGaugeFactory).creationCode,
-                        abi.encode(liquidityGaugeTemplate, admin, veDelegation, vaultRegistry)
+                        abi.encode(liquidityGaugeTemplate, admin, vaultRegistry)
                     )
                 )
             );
