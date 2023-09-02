@@ -94,7 +94,7 @@ contract E2ETest is Test {
         // mint vault shares to deposit into the gauge
         deal(address(vault), address(this), 1e18); // same amount as the liquidity in original tests
 
-        factory = new PopcornLiquidityGaugeFactory(liquidityGaugeTemplate, gaugeAdmin, address(veDelegation), IVaultRegistry(address(vaultRegistry)));
+        factory = new PopcornLiquidityGaugeFactory(liquidityGaugeTemplate, gaugeAdmin, IVaultRegistry(address(vaultRegistry)));
 
         // activate inflation rewards
         vm.prank(tokenAdminOwner);

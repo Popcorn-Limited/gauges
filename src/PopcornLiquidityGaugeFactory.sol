@@ -29,17 +29,14 @@ contract PopcornLiquidityGaugeFactory is BaseGaugeFactory, Owned {
 
     address public immutable gaugeAdmin;
     IVaultRegistry public immutable popcornVaultRegistry;
-    address public immutable votingEscrowDelegation;
 
     constructor(
         ILiquidityGauge gaugeTemplate,
         address gaugeAdmin_,
-        address votingEscrowDelegation_,
         IVaultRegistry popcornVaultRegistry_
     ) BaseGaugeFactory(gaugeTemplate) Owned(msg.sender) {
         popcornVaultRegistry = popcornVaultRegistry_;
         gaugeAdmin = gaugeAdmin_;
-        votingEscrowDelegation = votingEscrowDelegation_;
     }
 
     /**
@@ -54,7 +51,7 @@ contract PopcornLiquidityGaugeFactory is BaseGaugeFactory, Owned {
         // this will fail if there's a gauge for the given vault.
         address gauge = _create(vaultAddr.fillLast12Bytes());
         ILiquidityGauge(gauge).initialize(
-            vaultAddr, relativeWeightCap, votingEscrowDelegation, gaugeAdmin
+            vaultAddr, relativeWeightCap, gaugeAdmin
         );
         return gauge;
     }

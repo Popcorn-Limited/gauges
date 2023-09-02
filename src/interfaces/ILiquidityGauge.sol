@@ -78,7 +78,6 @@ interface ILiquidityGauge {
     function initialize(
         address lpToken,
         uint256 relativeWeightCap,
-        address votingEscrowDelegation,
         address admin
     ) external;
 
