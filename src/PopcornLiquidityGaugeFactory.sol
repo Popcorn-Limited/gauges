@@ -17,11 +17,12 @@ pragma solidity ^0.8.0;
 import {IVaultRegistry, VaultMetadata} from "popcorn/src/interfaces/vault/IVaultRegistry.sol";
 
 import {Bytes32AddressLib} from "solmate/utils/Bytes32AddressLib.sol";
+import {Owned} from "solmate/auth/Owned.sol";
 
 import {BaseGaugeFactory} from "./BaseGaugeFactory.sol";
 import {ILiquidityGauge} from "./interfaces/ILiquidityGauge.sol";
 
-contract PopcornLiquidityGaugeFactory is BaseGaugeFactory {
+contract PopcornLiquidityGaugeFactory is BaseGaugeFactory, Owned {
     using Bytes32AddressLib for address;
 
     error PopcornLiquidityGaugeFactory__InvalidVault();
@@ -35,7 +36,7 @@ contract PopcornLiquidityGaugeFactory is BaseGaugeFactory {
         address gaugeAdmin_,
         address votingEscrowDelegation_,
         IVaultRegistry popcornVaultRegistry_
-    ) BaseGaugeFactory(gaugeTemplate) {
+    ) BaseGaugeFactory(gaugeTemplate) Owned(msg.sender) {
         popcornVaultRegistry = popcornVaultRegistry_;
         gaugeAdmin = gaugeAdmin_;
         votingEscrowDelegation = votingEscrowDelegation_;
@@ -46,7 +47,7 @@ contract PopcornLiquidityGaugeFactory is BaseGaugeFactory {
      * @param relativeWeightCap The relative weight cap for the created gauge
      * @return The address of the deployed gauge
      */
-    function create(address vaultAddr, uint256 relativeWeightCap) external returns (address) {
+    function create(address vaultAddr, uint256 relativeWeightCap) onlyOwner external returns (address) {
         VaultMetadata memory vault = popcornVaultRegistry.getVault(vaultAddr);
         if (vault.vault != vaultAddr) revert PopcornLiquidityGaugeFactory__InvalidVault();
 

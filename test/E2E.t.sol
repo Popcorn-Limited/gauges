@@ -126,6 +126,12 @@ contract E2ETest is Test {
         assertEq(gauge.is_killed(), false, "Gauge killed at creation");
     }
 
+    function test_onlyAdminCanCreateGauge() external {
+        vm.startPrank(vm.addr(1));
+        vm.expectRevert("UNAUTHORIZED");
+        factory.create(address(vault), 1 ether);
+    }
+
     function test_adminKillGauge() external {
         // create gauge
         ILiquidityGauge gauge = ILiquidityGauge(factory.create(address(vault), 1 ether));
