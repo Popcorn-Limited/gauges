@@ -33,7 +33,6 @@ contract DeployScript is CREATE3Script, VyperDeployer {
         vm.startBroadcast(admin);
 
         {
-            // TODO: should be deployed fresh for actual release
             IERC20Mintable rewardToken = IERC20Mintable(getCreate3Contract("OptionsToken"));
             tokenAdmin = TokenAdmin(
                 create3.deploy(
