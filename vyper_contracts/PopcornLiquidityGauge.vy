@@ -22,6 +22,7 @@ interface Controller:
 
 interface ERC20Extended:
     def symbol() -> String[32]: view
+    def decimals() -> uint256: view
 
 interface ERC1271:
     def isValidSignature(_hash: bytes32, _signature: Bytes[65]) -> bytes32: view
@@ -127,6 +128,7 @@ nonces: public(HashMap[address, uint256])
 # Gauge
 lp_token: public(address)
 gauge_state: public(uint8)
+decimals: public(uint256)
 
 # [future_epoch_time uint40][inflation_rate uint216]
 inflation_params: uint256
@@ -862,17 +864,6 @@ def inflation_rate() -> uint256:
 
 @view
 @external
-def decimals() -> uint256:
-    """
-    @notice Get the number of decimals for this token
-    @dev Implemented as a view method to reduce gas costs
-    @return uint256 decimal places
-    """
-    return 18
-
-
-@view
-@external
 def version() -> String[8]:
     """
     @notice Get the version of this gauge contract
@@ -920,6 +911,7 @@ def initialize(_lp_token: address, relative_weight_cap: uint256, _admin: address
 
     self.admin = _admin
     self.lp_token = _lp_token
+    self.decimals = ERC20Extended(_lp_token).decimals()
 
     symbol: String[32] = ERC20Extended(_lp_token).symbol()
     name: String[64] = concat("Popcorn", symbol, " Gauge Deposit")
