@@ -23,7 +23,6 @@ contract DeployScript is CREATE3Script, VyperDeployer {
             Minter minter,
             TokenAdmin tokenAdmin,
             IVotingEscrow votingEscrow,
-            address delegationProxy,
             IGaugeController gaugeController,
             PopcornLiquidityGaugeFactory factory,
             SmartWalletChecker smartWalletChecker
@@ -66,22 +65,8 @@ contract DeployScript is CREATE3Script, VyperDeployer {
                 bytes.concat(type(Minter).creationCode, abi.encode(tokenAdmin, gaugeController))
             )
         );
-        address boostV2 = create3.deploy(
-            getCreate3ContractSalt("BoostV2"),
-            bytes.concat(
-                compileContract("BoostV2"),
-                abi.encode(votingEscrow)
-            )
-        );
-        {
-            delegationProxy = create3.deploy(
-                getCreate3ContractSalt("DelegationProxy"),
-                bytes.concat(
-                    compileContract("DelegationProxy"),
-                    abi.encode(votingEscrow, boostV2, admin, admin)
-                )
-            );
-        }
+
+        delegationProxy = getCreate3Contract("DelegationProxy");
         ILiquidityGauge liquidityGaugeTemplate = ILiquidityGauge(
             create3.deploy(
                 getCreate3ContractSalt("PopcornLiquidityGauge"),
@@ -95,7 +80,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
             IVaultRegistry vaultRegistry = IVaultRegistry(vm.envAddress("VAULT_REGISTRY"));
             factory = PopcornLiquidityGaugeFactory(
                 create3.deploy(
-                    getCreate3ContractSalt("PopcornLiquidityGaugeFactory"),
+                    getCreate3ContractSalt("PopcornLiquidityGaugeFactory2"),
                     bytes.concat(
                         type(PopcornLiquidityGaugeFactory).creationCode,
                         abi.encode(liquidityGaugeTemplate, admin, vaultRegistry)

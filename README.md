@@ -1,6 +1,14 @@
-# Timeless gauge contracts
+# Popcorn gauge contracts
 
-Foundry repo for contracts used by Timeless's gauge system.
+Foundry repo for contracts used by Popcorn's gauge system.
+
+## Deployment
+
+1. `DeployBoostV2`
+2. `DeployDelegationProxy`
+3. `Deploy`
+4. `ActivateTokenAdmin`
+5. `DeployGauges`
 
 ## Installation
 
@@ -52,4 +60,4 @@ forge script script/Deploy.s.sol -f [network] --verify --broadcast
 
 ### Gauge stakers can abuse their boost after `tokenless_production` is updated
 
-After the `tokenless_production` value has been updated in `TimelessLiquidityGauge`, some stakers may see their staking weight decrease once `_update_liquidity_limit()` is called, but this may not happen if the staker doesn't call the gauge contract (e.g. deposit, withdraw, claim rewards), which gives them outsized staking weights.
+After the `tokenless_production` value has been updated in `PopcornLiquidityGauge`, some stakers may see their staking weight decrease once `_update_liquidity_limit()` is called, but this may not happen if the staker doesn't call the gauge contract (e.g. deposit, withdraw, claim rewards), which gives them outsized staking weights.
