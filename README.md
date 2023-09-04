@@ -5,7 +5,7 @@ Foundry repo for contracts used by Popcorn's gauge system.
 ## Deployment
 
 1. `DeployBoostV2`
-2. `DeployDelegationProxy`
+2. update VOTING_ESCROW constant value in DelegationProxy.vy and execute `DeployDelegationProxy`
 3. `Deploy`
 4. `ActivateTokenAdmin`
 5. `DeployGauges`
