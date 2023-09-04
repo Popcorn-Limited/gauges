@@ -24,7 +24,7 @@ event DelegationSet:
     delegation: address
 
 
-VOTING_ESCROW: immutable(address)
+VOTING_ESCROW: constant(address) = 0x991C6135D57d17E8ECACE25d4B56108bC2309f77
 
 delegation: public(address)
 
@@ -35,8 +35,7 @@ future_ownership_admin: public(address)
 
 
 @external
-def __init__(voting_escrow: address, _delegation: address, _o_admin: address, _e_admin: address):
-    VOTING_ESCROW = voting_escrow
+def __init__(_delegation: address, _o_admin: address, _e_admin: address):
     self.delegation = _delegation
 
     self.ownership_admin = _o_admin
