@@ -34,7 +34,7 @@ contract PopcornLiquidityGaugeFactory is BaseGaugeFactory, Owned {
         ILiquidityGauge gaugeTemplate,
         address gaugeAdmin_,
         IVaultRegistry popcornVaultRegistry_
-    ) BaseGaugeFactory(gaugeTemplate) Owned(msg.sender) {
+    ) BaseGaugeFactory(gaugeTemplate) Owned(gaugeAdmin_) {
         popcornVaultRegistry = popcornVaultRegistry_;
         gaugeAdmin = gaugeAdmin_;
     }
