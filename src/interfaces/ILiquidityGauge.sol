@@ -96,4 +96,6 @@ interface ILiquidityGauge {
     function balanceOf(address account) external view returns (uint256);
 
     function claim_rewards() external;
+
+    function set_tokenless_production(uint8) external;
 }

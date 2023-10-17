@@ -24,12 +24,13 @@ contract DeployScript is CREATE3Script {
             gauges[i] = ILiquidityGauge(factory.create(vaults[i], 1e18));
         
             controller.add_gauge(address(gauges[i]), 0, 1);
-        
+      
+            gauges[i].set_tokenless_production(20);
+
             unchecked {
                 ++i;
             }
         }
-
         vm.stopBroadcast();
     }
 }
