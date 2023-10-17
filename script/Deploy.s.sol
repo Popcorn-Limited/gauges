@@ -66,7 +66,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
             )
         );
 
-        delegationProxy = getCreate3Contract("DelegationProxy");
+        address delegationProxy = getCreate3Contract("DelegationProxy");
         ILiquidityGauge liquidityGaugeTemplate = ILiquidityGauge(
             create3.deploy(
                 getCreate3ContractSalt("PopcornLiquidityGauge"),
