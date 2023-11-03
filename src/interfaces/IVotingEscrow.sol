@@ -8,6 +8,13 @@ interface IVotingEscrow {
         uint256 end;
     }
 
+    struct Point {
+        int128 bias;
+        int128 slope;
+        uint ts;
+        uint blk;
+    }
+
     function change_pending_admin(address addr) external;
 
     function claim_admin() external;
@@ -61,7 +68,7 @@ interface IVotingEscrow {
     function user_point_history(address arg0, uint256 arg1)
         external
         view
-        returns (int128 bias, int128 slope, uint256 ts, uint256 blk);
+        returns (Point memory);
 
     function user_point_epoch(address arg0) external view returns (uint256);
 
