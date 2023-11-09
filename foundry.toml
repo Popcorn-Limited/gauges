@@ -2,6 +2,7 @@
 ffi = true
 optimizer_runs = 1000000
 remappings = [
+  "solmate/=lib/solmate/src/",
   "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
   # foundry seems to have issues with nested dependencies. 
   # We import VaultRegistry which imports IERC4626 from its own dependencies.
