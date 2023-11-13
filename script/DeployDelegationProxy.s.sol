@@ -17,21 +17,17 @@ import {PopcornLiquidityGaugeFactory} from "../src/PopcornLiquidityGaugeFactory.
 contract DeployScript is CREATE3Script, VyperDeployer {
     constructor() CREATE3Script(vm.envString("VERSION")) {}
 
-    function run()
-        public
-        returns (
-            address delegationProxy
-    )
-    {
+    function run() public returns (address delegationProxy) {
         address admin = vm.envAddress("ADMIN");
         vm.startBroadcast(admin);
 
+        address votingEscrow = getCreate3Contract("VotingEscrow");
         address boostV2 = getCreate3Contract("BoostV2");
         delegationProxy = create3.deploy(
             getCreate3ContractSalt("DelegationProxy"),
             bytes.concat(
                 compileContract("DelegationProxy"),
-                abi.encode(boostV2, admin, admin)
+                abi.encode(votingEscrow, boostV2, admin, admin)
             )
         );
 
