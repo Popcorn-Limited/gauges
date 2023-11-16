@@ -914,7 +914,7 @@ def initialize(_lp_token: address, relative_weight_cap: uint256, _admin: address
     self.decimals = ERC20Extended(_lp_token).decimals()
 
     symbol: String[32] = ERC20Extended(_lp_token).symbol()
-    name: String[64] = concat("Popcorn", symbol, " Gauge Deposit")
+    name: String[64] = concat("VaultCraft ", symbol, " Gauge Deposit")
 
     self.name = name
     self.symbol = concat(symbol, "-gauge")
