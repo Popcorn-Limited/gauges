@@ -34,10 +34,10 @@ import {IERC20Mintable} from "./interfaces/IERC20Mintable.sol";
  * it is defined here, we must then wrap the token's minting functionality in order for this to be meaningful.
  */
 contract TokenAdmin is ITokenAdmin, ReentrancyGuard, Owned {
-    // Initial inflation rate of 1.3731M tokens per week.
-    uint256 public constant override INITIAL_RATE = (1373100 * 1e18) / uint256(1 weeks); // token has 18 decimals
-    uint256 public constant override RATE_REDUCTION_TIME = 365 days;
-    uint256 public constant override RATE_REDUCTION_COEFFICIENT = 1189207115002721024; // 2 ** (1/4) * 1e18
+    // Initial inflation rate of 4M tokens per week.
+    uint256 public constant override INITIAL_RATE = (4_000_000 * 1e18) / uint256(1 weeks); // token has 18 decimals
+    uint256 public constant override RATE_REDUCTION_TIME = 91 days; // 13 weeks (Nov 30 - Feb 29)
+    uint256 public constant override RATE_REDUCTION_COEFFICIENT = 1.037 * 1e18 ;
     uint256 public constant override RATE_DENOMINATOR = 1e18;
 
     IERC20Mintable private immutable _token;

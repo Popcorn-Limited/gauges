@@ -8,7 +8,7 @@ contract VCX is ERC20, Owned {
     IERC20 internal constant POP =
         IERC20(0xD0Cd466b34A24fcB2f87676278AF2005Ca8A78c4);
     uint public endOfMigrationTs;
-    uint256 maxSupply = 1e26; // @dev cant mint more than 100m VCX
+    uint256 maxSupply = 1e27; // @dev cant mint more than 1b VCX (100m POP * 10)
 
     event Migrated(address indexed user, uint popAmount, uint vcxAmount);
     event UpdatedEndOfMigrationTs(uint oldTs, uint newTs);
