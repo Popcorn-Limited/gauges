@@ -17,7 +17,7 @@ contract VCX is ERC20, Owned {
         string memory _name,
         string memory _symbol
     ) ERC20(_name, _symbol, 18) Owned(msg.sender) {
-        endOfMigrationTs = block.timestamp + 365 days;
+        endOfMigrationTs = block.timestamp + 77 days;
     }
 
     // @param amount the amount of POP you want to migrate
