@@ -14,9 +14,10 @@ contract VCX is ERC20, Owned {
     event UpdatedEndOfMigrationTs(uint oldTs, uint newTs);
 
     constructor(
+        address admin,
         string memory _name,
         string memory _symbol
-    ) ERC20(_name, _symbol, 18) Owned(msg.sender) {
+    ) ERC20(_name, _symbol, 18) Owned(admin) {
         endOfMigrationTs = block.timestamp + 77 days;
     }
 
