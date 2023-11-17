@@ -12,7 +12,7 @@ contract VCXTest is Test {
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("mainnet"));
 
-        vcx = new VCX("VCX", "VCX");
+        vcx = new VCX(address(this), "VCX", "VCX");
     
         vcx.setEndOfMigrationTs(block.timestamp + 10_000);
     }
