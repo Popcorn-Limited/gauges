@@ -13,6 +13,7 @@ import {IERC20Mintable} from "../src/interfaces/IERC20Mintable.sol";
 import {ILiquidityGauge} from "../src/interfaces/ILiquidityGauge.sol";
 import {IGaugeController} from "../src/interfaces/IGaugeController.sol";
 import {PopcornLiquidityGaugeFactory} from "../src/PopcornLiquidityGaugeFactory.sol";
+import "forge-std/Script.sol";
 
 contract DeployScript is CREATE3Script, VyperDeployer {
     constructor() CREATE3Script(vm.envString("VERSION")) {}
@@ -28,45 +29,79 @@ contract DeployScript is CREATE3Script, VyperDeployer {
             SmartWalletChecker smartWalletChecker
         )
     {
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address admin = vm.envAddress("ADMIN");
-        vm.startBroadcast(admin);
 
+        vm.startBroadcast(deployerPrivateKey);
         {
-            IERC20Mintable rewardToken = IERC20Mintable(getCreate3Contract("OptionsToken"));
+            IERC20Mintable rewardToken = IERC20Mintable(
+                getCreate3Contract("OptionsToken")
+            );
+
+            console2.log("rewardToken ", address(rewardToken));
+            console2.log("minter ", getCreate3Contract("Minter"));
+            console2.log("admin ", address(admin));
+
+
             tokenAdmin = TokenAdmin(
                 create3.deploy(
                     getCreate3ContractSalt("TokenAdmin"),
                     bytes.concat(
-                        type(TokenAdmin).creationCode, abi.encode(rewardToken, getCreate3Contract("Minter"), admin)
+                        type(TokenAdmin).creationCode,
+                        abi.encode(
+                            rewardToken,
+                            getCreate3Contract("Minter"),
+                            admin
+                        )
                     )
                 )
             );
         }
+        console2.log("tokenAdmin ", address(tokenAdmin));
+
         {
-            address lockToken = vm.envAddress("LOCK_TOKEN");
+            address lockToken = vm.envAddress("BALANCER_POOL");
             votingEscrow = IVotingEscrow(
                 create3.deploy(
                     getCreate3ContractSalt("VotingEscrow"),
                     bytes.concat(
-                        compileContract("VotingEscrow"), abi.encode(lockToken, "Popcorn Voting Escrow", "vePOP", admin)
+                        compileContract("VotingEscrow"),
+                        abi.encode(
+                            lockToken,
+                            "VaultCraft Voting Escrow",
+                            "veVCX",
+                            admin
+                        )
                     )
                 )
             );
         }
+        console2.log("VotingEscrow");
+
         gaugeController = IGaugeController(
             create3.deploy(
                 getCreate3ContractSalt("GaugeController"),
-                bytes.concat(compileContract("GaugeController"), abi.encode(votingEscrow, admin))
+                bytes.concat(
+                    compileContract("GaugeController"),
+                    abi.encode(votingEscrow, admin)
+                )
             )
         );
+        console2.log("GaugeController");
+
         minter = Minter(
             create3.deploy(
                 getCreate3ContractSalt("Minter"),
-                bytes.concat(type(Minter).creationCode, abi.encode(tokenAdmin, gaugeController))
+                bytes.concat(
+                    type(Minter).creationCode,
+                    abi.encode(tokenAdmin, gaugeController)
+                )
             )
         );
+        console2.log("Minter");
 
         address delegationProxy = getCreate3Contract("DelegationProxy");
+
         ILiquidityGauge liquidityGaugeTemplate = ILiquidityGauge(
             create3.deploy(
                 getCreate3ContractSalt("PopcornLiquidityGauge"),
@@ -76,8 +111,12 @@ contract DeployScript is CREATE3Script, VyperDeployer {
                 )
             )
         );
+        console2.log("PopcornLiquidityGauge");
+
         {
-            IVaultRegistry vaultRegistry = IVaultRegistry(vm.envAddress("VAULT_REGISTRY"));
+            IVaultRegistry vaultRegistry = IVaultRegistry(
+                vm.envAddress("VAULT_REGISTRY")
+            );
             factory = PopcornLiquidityGaugeFactory(
                 create3.deploy(
                     getCreate3ContractSalt("PopcornLiquidityGaugeFactory2"),
@@ -88,15 +127,24 @@ contract DeployScript is CREATE3Script, VyperDeployer {
                 )
             );
         }
+        console2.log("PopcornLiquidityGaugeFactory2");
+
         {
-            address[] memory initialAllowlist = vm.envAddress("INITIAL_ALLOWLIST", ",");
+            address[] memory initialAllowlist = vm.envAddress(
+                "INITIAL_ALLOWLIST",
+                ","
+            );
             smartWalletChecker = SmartWalletChecker(
                 create3.deploy(
                     getCreate3ContractSalt("SmartWalletChecker"),
-                    bytes.concat(type(SmartWalletChecker).creationCode, abi.encode(admin, initialAllowlist))
+                    bytes.concat(
+                        type(SmartWalletChecker).creationCode,
+                        abi.encode(admin, initialAllowlist)
+                    )
                 )
             );
         }
+        console2.log("SmartWalletChecker");
 
         // NOTE: The admin still needs to
         // - Activate inflation in tokenAdmin
