@@ -13,7 +13,7 @@ contract VCXTest is Test {
         vm.createSelectFork(vm.rpcUrl("mainnet"));
 
         vcx = new VCX(address(this), "VCX", "VCX");
-    
+
         vcx.setEndOfMigrationTs(block.timestamp + 10_000);
     }
 
@@ -27,9 +27,21 @@ contract VCXTest is Test {
         vcx.migrate(user, 1e18);
         vm.stopPrank();
 
-        assertEq(pop.balanceOf(address(vcx)), 1e18);
-        assertEq(vcx.balanceOf(user), 10e18);
-        assertEq(pop.balanceOf(user), initialPopBalance - 1e18);
+        assertEq(pop.balanceOf(address(vcx)), 1e18, "!pop transfer");
+        assertEq(vcx.balanceOf(user), 10e18, "!vcx minted");
+        assertEq(
+            pop.balanceOf(user),
+            initialPopBalance - 1e18,
+            "!pop transfer2"
+        );
+    }
+
+    function testFail_migrate_if_not_transfered() public {
+        // Largest POP holder
+        address user = 0x93A32401D3E1425AD7b3E118816A1B900E714d18;
+        uint initialPopBalance = pop.balanceOf(user);
+        vm.prank(user);
+        vcx.migrate(user, 1e18);
     }
 
     function test_canNotMigrateAfterEnd() public {

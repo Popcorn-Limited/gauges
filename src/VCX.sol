@@ -27,7 +27,9 @@ contract VCX is ERC20, Owned {
         uint256 toMint = amount * 10;
         if (totalSupply + toMint > maxSupply) revert("MAX_SUPPLY");
 
-        POP.transferFrom(msg.sender, address(this), amount);
+        bool success = POP.transferFrom(msg.sender, address(this), amount);
+        if (!success) revert("NOT TRANSFERED");
+        
         _mint(to, toMint);
 
         emit Migrated(msg.sender, amount, amount * 10);
