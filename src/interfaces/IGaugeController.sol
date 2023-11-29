@@ -30,13 +30,19 @@ interface IGaugeController {
 
     function gauges(uint256) external view returns (address);
 
-    function vote_user_slopes(address, address) external view returns (VotedSlope memory);
+    function vote_user_slopes(
+        address,
+        address
+    ) external view returns (VotedSlope memory);
 
     function vote_user_power(address) external view returns (uint256);
 
     function last_user_vote(address, address) external view returns (uint256);
 
-    function points_weight(address, uint256) external view returns (Point memory);
+    function points_weight(
+        address,
+        uint256
+    ) external view returns (Point memory);
 
     function time_weight(address) external view returns (uint256);
 
@@ -48,7 +54,10 @@ interface IGaugeController {
 
     function time_total() external view returns (uint256);
 
-    function points_type_weight(int128, uint256) external view returns (uint256);
+    function points_type_weight(
+        int128,
+        uint256
+    ) external view returns (uint256);
 
     function time_type_weight(uint256) external view returns (uint256);
 
@@ -57,7 +66,10 @@ interface IGaugeController {
 
     function gauge_relative_weight(address) external view returns (uint256);
 
-    function gauge_relative_weight(address, uint256) external view returns (uint256);
+    function gauge_relative_weight(
+        address,
+        uint256
+    ) external view returns (uint256);
 
     function get_gauge_weight(address) external view returns (uint256);
 
@@ -76,7 +88,10 @@ interface IGaugeController {
 
     function gauge_relative_weight_write(address) external returns (uint256);
 
-    function gauge_relative_weight_write(address, uint256) external returns (uint256);
+    function gauge_relative_weight_write(
+        address,
+        uint256
+    ) external returns (uint256);
 
     function add_type(string memory, uint256) external;
 
@@ -89,4 +104,10 @@ interface IGaugeController {
     function change_pending_admin(address newPendingAdmin) external;
 
     function claim_admin() external;
+
+    // vote
+    function vote_for_many_gauge_weights(
+        address[8] memory gauges,
+        uint256[8] memory weights
+    ) external;
 }
