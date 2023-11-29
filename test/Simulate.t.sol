@@ -60,7 +60,7 @@ contract SimulateTest is Test {
         TokenAdmin(0x03d103c547B43b5a76df7e652BD0Bb61bE0BD70d);
     PopcornLiquidityGaugeFactory factory =
         PopcornLiquidityGaugeFactory(
-            0x32a33CC9dC61352E70cb557927E5F9544ddb0a26
+            0x3bd6418e90653945f781e3717D8F9404565444F6
         );
     Minter minter = Minter(0x49f095B38eE6d8541758af51c509332e7793D4b0);
 
@@ -70,7 +70,7 @@ contract SimulateTest is Test {
     }
 
     function test_all_the_things() public {
-        vm.startPrank(admin,admin);
+        vm.startPrank(admin, admin);
 
         // Activate TokenAdmin
         tokenAdmin.activate();
@@ -98,7 +98,7 @@ contract SimulateTest is Test {
         // Lock VCX_LP
         deal(address(lp), admin, 1e18);
 
-        vm.startPrank(admin,admin);
+        vm.startPrank(admin, admin);
         lp.approve(address(votingEscrow), 1e18);
         votingEscrow.create_lock(1e18, block.timestamp + (4 * 365 * 86400));
 
@@ -129,10 +129,23 @@ contract SimulateTest is Test {
         // Get Vault and Gauge
         deal(address(asset), admin, 100e18);
 
-        vm.startPrank(admin,admin);
-        asset.approve(address(router), 0);
-        asset.approve(address(router), 100e18);
-        router.depositAndStake(address(vault), address(gauges[0]), 100e18, admin);
+        vm.startPrank(admin, admin);
+        asset.approve(address(vault), 0);
+        asset.approve(address(vault), 100e18);
+        uint256 shares = vault.deposit(100e18, admin);
+        vault.approve(address(gauges[0]), shares);
+
+        emit log_named_uint(
+            "gauge allow",
+            vault.allowance(admin, address(gauges[0]))
+        );
+
+        emit log_named_address(
+            "gauge lp token",
+            gauges[0].lp_token()
+        );
+
+        gauges[0].deposit(1e27);
 
         emit log_named_uint(
             "gauge bal",
@@ -156,7 +169,7 @@ contract SimulateTest is Test {
         // Exercise
         deal(address(weth), admin, 1e18);
 
-        vm.startPrank(admin,admin);
+        vm.startPrank(admin, admin);
         weth.approve(address(oVCX), 1e18);
         vcx.approve(address(oVCX), 1e18);
 
