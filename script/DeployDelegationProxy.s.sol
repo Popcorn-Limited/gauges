@@ -14,20 +14,24 @@ import {ILiquidityGauge} from "../src/interfaces/ILiquidityGauge.sol";
 import {IGaugeController} from "../src/interfaces/IGaugeController.sol";
 import {PopcornLiquidityGaugeFactory} from "../src/PopcornLiquidityGaugeFactory.sol";
 
+import "forge-std/Script.sol";
+
 contract DeployScript is CREATE3Script, VyperDeployer {
     constructor() CREATE3Script(vm.envString("VERSION")) {}
 
     function run() public returns (address delegationProxy) {
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address admin = vm.envAddress("ADMIN");
-        vm.startBroadcast(admin);
 
-        address votingEscrow = getCreate3Contract("VotingEscrow");
-        address boostV2 = getCreate3Contract("BoostV2");
+        vm.startBroadcast(deployerPrivateKey);
+
+        address boostV2 = address(0xa2E88993a0f0dc6e6020431477f3A70c86109bBf);
+
         delegationProxy = create3.deploy(
             getCreate3ContractSalt("DelegationProxy"),
             bytes.concat(
                 compileContract("DelegationProxy"),
-                abi.encode(votingEscrow, boostV2, admin, admin)
+                abi.encode(boostV2, admin, admin)
             )
         );
 
