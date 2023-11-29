@@ -70,7 +70,7 @@ contract SimulateTest is Test {
     }
 
     function test_all_the_things() public {
-        vm.startPrank(admin);
+        vm.startPrank(admin,admin);
 
         // Activate TokenAdmin
         tokenAdmin.activate();
@@ -98,9 +98,9 @@ contract SimulateTest is Test {
         // Lock VCX_LP
         deal(address(lp), admin, 1e18);
 
-        vm.startPrank(admin);
+        vm.startPrank(admin,admin);
         lp.approve(address(votingEscrow), 1e18);
-        votingEscrow.create_lock(1e18, block.timestamp + 4 * 365);
+        votingEscrow.create_lock(1e18, block.timestamp + (4 * 365 * 86400));
 
         gaugeController.vote_for_many_gauge_weights(
             [
@@ -127,11 +127,12 @@ contract SimulateTest is Test {
         vm.stopPrank();
 
         // Get Vault and Gauge
-        deal(address(asset), admin, 1e18);
+        deal(address(asset), admin, 100e18);
 
-        vm.startPrank(admin);
-        asset.approve(address(router), 1e18);
-        router.depositAndStake(address(vault), address(gauges[0]), 1e18, admin);
+        vm.startPrank(admin,admin);
+        asset.approve(address(router), 0);
+        asset.approve(address(router), 100e18);
+        router.depositAndStake(address(vault), address(gauges[0]), 100e18, admin);
 
         emit log_named_uint(
             "gauge bal",
@@ -154,9 +155,10 @@ contract SimulateTest is Test {
 
         // Exercise
         deal(address(weth), admin, 1e18);
-        
-        vm.startPrank(admin);
+
+        vm.startPrank(admin,admin);
         weth.approve(address(oVCX), 1e18);
+        vcx.approve(address(oVCX), 1e18);
 
         oVCX.exercise(1e18, 1e18, admin);
 
