@@ -70,6 +70,8 @@ contract SimulateTest is Test {
     }
 
     function test_all_the_things() public {
+        vm.warp(block.timestamp + 2 days);
+
         vm.startPrank(admin, admin);
 
         // Activate TokenAdmin
@@ -140,20 +142,22 @@ contract SimulateTest is Test {
             vault.allowance(admin, address(gauges[0]))
         );
 
-        emit log_named_address(
-            "gauge lp token",
-            gauges[0].lp_token()
-        );
+        emit log_named_address("gauge lp token", gauges[0].lp_token());
 
-        gauges[0].deposit(1e27);
+        gauges[0].deposit(shares);
 
         emit log_named_uint(
             "gauge bal",
             IERC20(address(gauges[0])).balanceOf(admin)
         );
+        emit log_named_uint("block.timestamp1", block.timestamp);
 
         // Time jump
-        vm.warp(1 days);
+        vm.warp(block.timestamp + 9 days);
+
+        emit log_named_uint("block.timestamp2", block.timestamp);
+
+        emit log_named_uint("ve bal", votingEscrow.balanceOf(admin));
 
         // Claim
         address[] memory _gauges = new address[](gauges.length);
