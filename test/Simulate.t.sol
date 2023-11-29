@@ -79,7 +79,7 @@ contract SimulateTest is Test {
         gaugeController.add_type("Ethereum", 1);
 
         address[] memory vaults = new address[](1);
-        vaults[0] = 0x759281a408A48bfe2029D259c23D7E848A7EA1bC;
+        vaults[0] = address(vault);
 
         ILiquidityGauge[] memory gauges = new ILiquidityGauge[](vaults.length);
         for (uint256 i; i < vaults.length; ) {
