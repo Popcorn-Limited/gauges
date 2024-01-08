@@ -27,10 +27,6 @@ interface VotingEscrow:
     def user_point_epoch(addr: address) -> uint256: view
     def user_point_history__ts(addr: address, epoch: uint256) -> uint256: view
 
-interface UniswapPoorOracle:
-    def getPositionStateFromKey(key: bytes32) -> uint256: view
-
-
 event Approval:
     _owner: indexed(address)
     _spender: indexed(address)
@@ -105,7 +101,6 @@ VERSION: constant(String[8]) = "v0.1.0"
 
 
 FACTORY: immutable(address)
-UNISWAP_POOR_ORACLE: immutable(UniswapPoorOracle)
 
 
 DOMAIN_SEPARATOR: public(bytes32)
@@ -115,7 +110,6 @@ tokenless_production: public(uint8)
 gauge_state: public(uint8)
 lp_token: public(address)
 manager: public(address)
-position_key: public(bytes32)
 
 name: public(String[64])
 symbol: public(String[32])
@@ -151,11 +145,10 @@ inflation_rate: public(HashMap[uint256, uint256])
 
 
 @external
-def __init__(_factory: address, _uniswap_poor_oracle: UniswapPoorOracle):
+def __init__(_factory: address): 
     self.lp_token = 0x000000000000000000000000000000000000dEaD
 
     FACTORY = _factory
-    UNISWAP_POOR_ORACLE = _uniswap_poor_oracle
 
 
 @internal
@@ -677,17 +670,6 @@ def set_manager(_manager: address):
 
 
 @external
-def makeGaugePermissionless():
-    """
-    @notice Uses the Uniswap Poor oracle to decide whether a gauge is alive
-    """
-    assert msg.sender == Factory(FACTORY).owner() # dev: only owner
-
-    self.gauge_state = 0 # PERMISSIONLESS
-    log NewGaugeState(0)
-
-
-@external
 def killGauge():
     """
     @notice Kills the gauge so it always yields a rate of 0 and so cannot mint rewards
@@ -779,26 +761,17 @@ def is_killed() -> bool:
 @internal
 @view
 def _is_killed() -> bool:
-    _gauge_state: uint8 = self.gauge_state
-
-    if _gauge_state == 0:
-        # PERMISSIONLESS
-        return UNISWAP_POOR_ORACLE.getPositionStateFromKey(self.position_key) == 2 # PositionState.OUT_OF_RANGE
-    else:
-        # DEAD or ALIVE
-        return _gauge_state == 1 # DEAD
-
+    return self.gauge_state == 1 # 1 == DEAD, 2 == ALIVE
 
 @external
-def initialize(_lp_token: address, _manager: address, _position_key: bytes32):
+def initialize(_lp_token: address, _manager: address):
     assert self.lp_token == empty(address)  # dev: already initialzed
 
     self.lp_token = _lp_token
     self.manager = _manager
-    self.position_key = _position_key
 
     symbol: String[26] = ERC20Extended(_lp_token).symbol()
-    name: String[64] = concat("Timeless ", symbol, " Gauge Deposit")
+    name: String[64] = concat("VaultCraft ", symbol, " Gauge Deposit")
 
     self.name = name
     self.symbol = concat(symbol, "-gauge")

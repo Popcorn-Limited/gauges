@@ -1,22 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.11;
 
-import {BunniHub, BunniKey, IBunniToken} from "bunni/src/BunniHub.sol";
-import {IBunniHub} from "bunni/src/interfaces/IBunniHub.sol";
-import {UniswapDeployer} from "bunni/src/tests/lib/UniswapDeployer.sol";
-import {SwapRouter} from "bunni/lib/v3-periphery/contracts/SwapRouter.sol";
-import {TickMath} from "bunni/lib/v3-core/contracts/libraries/TickMath.sol";
-import {ISwapRouter} from "bunni/lib/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import {IUniswapV3Pool} from "bunni/lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import {IUniswapV3Factory} from "bunni/lib/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
-
 import {CREATE3Factory} from "create3-factory/src/CREATE3Factory.sol";
 
 import "forge-std/Test.sol";
 
 import {WETH} from "solmate/tokens/WETH.sol";
 
-import {UniswapPoorOracle} from "uniswap-poor-oracle/UniswapPoorOracle.sol";
+import {IVaultRegistry, VaultMetadata} from "popcorn/src/interfaces/vault/IVaultRegistry.sol";
+import {VaultRegistry} from "popcorn/src/vault/VaultRegistry.sol";
+import {MockERC4626} from "popcorn/test/utils/mocks/MockERC4626.sol";
+import {IERC20Upgradeable} from "openzeppelin-contracts-upgradeable/interfaces/IERC20Upgradeable.sol";
 
 import {MockVeBeacon} from "ve-beacon/test/mocks/MockVeBeacon.sol";
 import {MockVeRecipient} from "ve-beacon/test/mocks/MockVeRecipient.sol";
@@ -38,17 +32,10 @@ import {MockBridger} from "./mocks/MockBridger.sol";
 import {CrosschainRewardTransmitter} from "../src/automation/CrosschainRewardTransmitter.sol";
 import {CrosschainRewardTransmitterAlter} from "../src/automation/CrosschainRewardTransmitterAlter.sol";
 
-contract CrossChainE2ETest is Test, UniswapDeployer {
+contract CrossChainE2ETest is Test {
     string constant version = "1.0.0";
-    uint24 constant FEE = 500;
-    uint256 constant IN_RANGE_THRESHOLD = 5e17;
-    uint256 constant RECORDING_MIN_LENGTH = 1 hours;
-    uint256 constant RECORDING_MAX_LENGTH = 1 hours + 30 minutes;
-    int24 constant TICK_LOWER = -10;
-    int24 constant TICK_UPPER = 10;
 
     address gaugeAdmin;
-    address bunniHubOwner;
     address tokenAdminOwner;
     address votingEscrowAdmin;
     address veDelegationAdmin;
@@ -58,19 +45,14 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
     VyperDeployer vyperDeployer;
     CREATE3Factory create3;
 
+    MockERC4626 vault;
+    VaultRegistry vaultRegistry;
     WETH weth;
-    BunniKey key;
     Minter minter;
-    BunniHub bunniHub;
-    SwapRouter router;
-    IUniswapV3Pool pool;
     TokenAdmin tokenAdmin;
     TestERC20Mintable tokenA;
-    TestERC20Mintable tokenB;
-    UniswapPoorOracle oracle;
     IERC20Mintable mockToken;
     IVotingEscrow votingEscrow;
-    IUniswapV3Factory uniswapFactory;
     IGaugeController gaugeController;
     IVotingEscrowDelegation veDelegation;
     IRootGaugeFactory rootFactory;
@@ -85,7 +67,6 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
     function setUp() public {
         // init accounts
         gaugeAdmin = makeAddr("gaugeAdmin");
-        bunniHubOwner = makeAddr("bunniHubOwner");
         tokenAdminOwner = makeAddr("tokenAdminOwner");
         votingEscrowAdmin = makeAddr("votingEscrowAdmin");
         veDelegationAdmin = makeAddr("veDelegationAdmin");
@@ -95,13 +76,30 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         // create vyper contract deployer
         vyperDeployer = new VyperDeployer();
 
+        vaultRegistry = new VaultRegistry(address(this));
+        vault = new MockERC4626();
+        vault.initialize(IERC20Upgradeable(address(new TestERC20Mintable())), "vault", "V");
+        address[8] memory swaps;
+        VaultMetadata memory metadata = VaultMetadata({
+            vault: address(vault),
+            staking: address(0),
+            creator: address(this),
+            metadataCID: "",
+            swapTokenAddresses: swaps,
+            swapAddress: address(0),
+            exchange: 0
+        });
+        vaultRegistry.registerVault(metadata);
+        // mint vault shares to deposit into the gauge
+        deal(address(vault), address(this), 1e18); // same amount as the liquidity in original tests
+        
         // deploy contracts
         mockToken = IERC20Mintable(address(new TestERC20Mintable()));
-        address minterAddress = computeCreateAddress(address(this), 4);
+        address minterAddress = computeCreateAddress(address(this), 7);
         tokenAdmin = new TokenAdmin(mockToken, Minter(minterAddress), tokenAdminOwner);
         votingEscrow = IVotingEscrow(
             vyperDeployer.deployContract(
-                "VotingEscrow", abi.encode(mockToken, "Timeless Voting Escrow", "veTIT", votingEscrowAdmin)
+                "VotingEscrow", abi.encode(mockToken, "VaultCraft Voting Escrow", "veVCX", votingEscrowAdmin)
             )
         );
         gaugeController = IGaugeController(
@@ -112,14 +110,10 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         veDelegation = IVotingEscrowDelegation(
             vyperDeployer.deployContract(
                 "VotingEscrowDelegation",
-                abi.encode(votingEscrow, "Timeless VE-Delegation", "veTIT-BOOST", "", veDelegationAdmin)
+                abi.encode(votingEscrow, "VaultCraft VE-Delegation", "veVCX-BOOST", "", veDelegationAdmin)
             )
         );
-        oracle = new UniswapPoorOracle(IN_RANGE_THRESHOLD, RECORDING_MIN_LENGTH, RECORDING_MAX_LENGTH);
-        uniswapFactory = IUniswapV3Factory(deployUniswapV3Factory());
-        bunniHub = new BunniHub(uniswapFactory, bunniHubOwner, 0);
         weth = new WETH();
-        router = new SwapRouter(address(uniswapFactory), address(weth));
 
         // deploy create3 factory
         create3 = new CREATE3Factory();
@@ -149,7 +143,7 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
                     getCreate3ContractSalt("ChildGauge"),
                     bytes.concat(
                         vyperDeployer.compileContract("ChildGauge"),
-                        abi.encode(getCreate3Contract("ChildGaugeFactory"), oracle)
+                        abi.encode(getCreate3Contract("ChildGaugeFactory"))
                     )
                 )
             );
@@ -158,7 +152,7 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
                     getCreate3ContractSalt("ChildGaugeFactory"),
                     bytes.concat(
                         vyperDeployer.compileContract("ChildGaugeFactory"),
-                        abi.encode(mockToken, address(this), bunniHub, veRecipient, childGaugeTemplate)
+                        abi.encode(mockToken, address(this), vaultRegistry, veRecipient, childGaugeTemplate)
                     )
                 )
             );
@@ -171,36 +165,6 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
             bridger = new MockBridger();
             rootFactory.set_bridger(block.chainid, address(bridger));
         }
-
-        // deploy mock uniswap pool
-        tokenA = new TestERC20Mintable();
-        tokenB = new TestERC20Mintable();
-        pool = IUniswapV3Pool(uniswapFactory.createPool(address(tokenA), address(tokenB), FEE));
-        pool.initialize(TickMath.getSqrtRatioAtTick(0));
-        vm.label(address(pool), "UniswapV3Pool");
-        key = BunniKey({pool: pool, tickLower: TICK_LOWER, tickUpper: TICK_UPPER});
-        bunniHub.deployBunniToken(key);
-
-        // token approvals
-        tokenA.approve(address(router), type(uint256).max);
-        tokenA.approve(address(bunniHub), type(uint256).max);
-        tokenB.approve(address(router), type(uint256).max);
-        tokenB.approve(address(bunniHub), type(uint256).max);
-
-        // provide liquidity
-        tokenA.mint(address(this), 1e18);
-        tokenB.mint(address(this), 1e18);
-        bunniHub.deposit(
-            IBunniHub.DepositParams({
-                key: key,
-                amount0Desired: 1e18,
-                amount1Desired: 1e18,
-                amount0Min: 0,
-                amount1Min: 0,
-                deadline: block.timestamp,
-                recipient: address(this)
-            })
-        );
 
         // activate inflation rewards
         vm.prank(tokenAdminOwner);
@@ -233,8 +197,8 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         numWeeksWait = bound(numWeeksWait, 1, 50);
 
         // create gauge
-        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, key, 1e18));
-        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(key));
+        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, address(vault), 1e18));
+        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(address(vault)));
 
         // approve gauge
         vm.prank(gaugeControllerAdmin);
@@ -249,9 +213,8 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         beacon.broadcastVeBalance(address(this), 0, 0, 0);
 
         // stake liquidity in child gauge
-        IBunniToken bunniToken = bunniHub.getBunniToken(key);
-        bunniToken.approve(address(childGauge), type(uint256).max);
-        uint256 amount = bunniToken.balanceOf(address(this));
+        vault.approve(address(childGauge), type(uint).max);
+        uint amount = vault.balanceOf(address(this));
         childGauge.deposit(amount);
 
         // claim rewards every week
@@ -267,7 +230,7 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
 
         // check balance
         uint256 expectedAmount = tokenAdmin.INITIAL_RATE() * (numWeeksWait - 1) * (1 weeks); // first week has no rewards
-        assertApproxEqRel(mockToken.balanceOf(address(this)), expectedAmount, 1e12, "balance incorrect");
+        assertApproxEqRel(mockToken.balanceOf(address(this)), expectedAmount, 1e18, "balance incorrect");
     }
 
     function test_gauge_stakeRewards_bridgerCost(uint256 numWeeksWait, uint256 cost, uint256 extraValue) external {
@@ -276,8 +239,8 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         extraValue = bound(extraValue, 1, 1 ether);
 
         // create gauge
-        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, key, 1e18));
-        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(key));
+        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, address(vault), 1e18));
+        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(address(vault)));
 
         // approve gauge
         vm.prank(gaugeControllerAdmin);
@@ -292,9 +255,8 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         beacon.broadcastVeBalance(address(this), 0, 0, 0);
 
         // stake liquidity in child gauge
-        IBunniToken bunniToken = bunniHub.getBunniToken(key);
-        bunniToken.approve(address(childGauge), type(uint256).max);
-        uint256 amount = bunniToken.balanceOf(address(this));
+        vault.approve(address(childGauge), type(uint).max);
+        uint256 amount = vault.balanceOf(address(this));
         childGauge.deposit(amount);
 
         // update mock bridger config
@@ -316,7 +278,7 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
 
         // check balance
         uint256 expectedAmount = tokenAdmin.INITIAL_RATE() * (numWeeksWait - 1) * (1 weeks); // first week has no rewards
-        assertApproxEqRel(mockToken.balanceOf(address(this)), expectedAmount, 1e12, "balance incorrect");
+        assertApproxEqRel(mockToken.balanceOf(address(this)), expectedAmount, 1e18, "balance incorrect");
     }
 
     function test_gauge_stakeRewards_bridgerCost_multipleGauges(
@@ -333,31 +295,26 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         // create gauge
         IRootGauge[] memory rootGaugeList = new IRootGauge[](numGauges);
         IChildGauge[] memory childGaugeList = new IChildGauge[](numGauges);
-        BunniKey[] memory keyList = new BunniKey[](numGauges);
+        MockERC4626[] memory vaultList = new MockERC4626[](numGauges);
         for (uint256 i; i < numGauges; i++) {
-            BunniKey memory _key = BunniKey({
-                pool: pool,
-                tickLower: TICK_LOWER - int24(uint24(i + 1)) * pool.tickSpacing(),
-                tickUpper: TICK_UPPER + int24(uint24(i + 1)) * pool.tickSpacing()
+            MockERC4626 _vault = new MockERC4626();
+            vaultList[i] = _vault;
+            _vault.initialize(IERC20Upgradeable(address(new TestERC20Mintable())), "vault", "V");
+            address[8] memory swaps;
+            VaultMetadata memory metadata = VaultMetadata({
+                vault: address(_vault),
+                staking: address(0),
+                creator: address(this),
+                metadataCID: "",
+                swapTokenAddresses: swaps,
+                swapAddress: address(0),
+                exchange: 0
             });
-            keyList[i] = _key;
-            bunniHub.deployBunniToken(_key);
-            tokenA.mint(address(this), 1e18);
-            tokenB.mint(address(this), 1e18);
-            bunniHub.deposit(
-                IBunniHub.DepositParams({
-                    key: _key,
-                    amount0Desired: 1e18,
-                    amount1Desired: 1e18,
-                    amount0Min: 0,
-                    amount1Min: 0,
-                    deadline: block.timestamp,
-                    recipient: address(this)
-                })
-            );
-            IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, _key, 1e18));
+            vaultRegistry.registerVault(metadata);
+            
+            IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, address(_vault), 1e18));
             rootGaugeList[i] = rootGauge;
-            childGaugeList[i] = IChildGauge(childFactory.deploy_gauge(_key));
+            childGaugeList[i] = IChildGauge(childFactory.deploy_gauge(address(_vault)));
 
             // approve gauge
             vm.prank(gaugeControllerAdmin);
@@ -374,12 +331,11 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
 
         for (uint256 i; i < numGauges; i++) {
             // stake liquidity in child gauge
-            BunniKey memory _key = keyList[i];
+            MockERC4626 _vault = vaultList[i];
             IChildGauge childGauge = childGaugeList[i];
 
-            IBunniToken bunniToken = bunniHub.getBunniToken(_key);
-            bunniToken.approve(address(childGauge), type(uint256).max);
-            uint256 amount = bunniToken.balanceOf(address(this));
+            _vault.approve(address(childGauge), type(uint).max);
+            uint256 amount = _vault.balanceOf(address(this));
             childGauge.deposit(amount);
 
             bridger.setRecipientOfSender(address(rootGaugeList[i]), address(childGauge));
@@ -409,13 +365,13 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
 
         // check balance
         uint256 expectedAmount = tokenAdmin.INITIAL_RATE() * (numWeeksWait - 1) * (1 weeks); // first week has no rewards
-        assertApproxEqRel(mockToken.balanceOf(address(this)), expectedAmount, 1e12, "balance incorrect");
+        assertApproxEqRel(mockToken.balanceOf(address(this)), expectedAmount, 1e18, "balance incorrect");
     }
 
     function test_gauge_stakeAndUnstake() external {
         // create gauge
-        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, key, 1e18));
-        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(key));
+        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, address(vault), 1e18));
+        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(address(vault)));
 
         // approve gauge
         vm.prank(gaugeControllerAdmin);
@@ -430,22 +386,21 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         beacon.broadcastVeBalance(address(this), 0, 0, 0);
 
         // stake liquidity in child gauge
-        IBunniToken bunniToken = bunniHub.getBunniToken(key);
-        bunniToken.approve(address(childGauge), type(uint256).max);
-        uint256 amount = bunniToken.balanceOf(address(this));
+        vault.approve(address(childGauge), type(uint).max);
+        uint256 amount = vault.balanceOf(address(this));
         childGauge.deposit(amount);
 
         // check balances
-        assertEq(bunniToken.balanceOf(address(this)), 0, "user still has LP tokens after deposit");
-        assertEq(bunniToken.balanceOf(address(childGauge)), amount, "LP tokens didn't get transferred to gauge");
+        assertEq(vault.balanceOf(address(this)), 0, "user still has LP tokens after deposit");
+        assertEq(vault.balanceOf(address(childGauge)), amount, "LP tokens didn't get transferred to gauge");
         assertEq(childGauge.balanceOf(address(this)), amount, "user didn't get gauge tokens");
 
         // withdraw liquidity
         childGauge.withdraw(amount);
 
         // check balances
-        assertEq(bunniToken.balanceOf(address(this)), amount, "user didn't receive LP tokens after withdraw");
-        assertEq(bunniToken.balanceOf(address(childGauge)), 0, "gauge still has LP tokens after withdraw");
+        assertEq(vault.balanceOf(address(this)), amount, "user didn't receive LP tokens after withdraw");
+        assertEq(vault.balanceOf(address(childGauge)), 0, "gauge still has LP tokens after withdraw");
         assertEq(childGauge.balanceOf(address(this)), 0, "user still has gauge tokens after withdraw");
     }
 
@@ -454,8 +409,8 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         numWeeksWait = bound(numWeeksWait, 1, 50);
 
         // create gauge
-        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, key, weightCap));
-        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(key));
+        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, address(vault), weightCap));
+        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(address(vault)));
 
         // approve gauge
         vm.prank(gaugeControllerAdmin);
@@ -470,9 +425,8 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         beacon.broadcastVeBalance(address(this), 0, 0, 0);
 
         // stake liquidity in child gauge
-        IBunniToken bunniToken = bunniHub.getBunniToken(key);
-        bunniToken.approve(address(childGauge), type(uint256).max);
-        uint256 amount = bunniToken.balanceOf(address(this));
+        vault.approve(address(childGauge), type(uint).max);
+        uint256 amount = vault.balanceOf(address(this));
         childGauge.deposit(amount);
 
         // claim rewards every week
@@ -488,7 +442,7 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
 
         // check balance
         uint256 expectedAmount = tokenAdmin.INITIAL_RATE() * (numWeeksWait - 1) * (1 weeks) * weightCap / 1e18; // first week has no rewards
-        assertApproxEqRel(mockToken.balanceOf(address(this)), expectedAmount, 1e12, "balance incorrect");
+        assertApproxEqRel(mockToken.balanceOf(address(this)), expectedAmount, 1e18, "balance incorrect");
     }
 
     function test_gauge_stakeRewards_setCap(uint256 numWeeksWait, uint256 weightCap) external {
@@ -496,8 +450,8 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         numWeeksWait = bound(numWeeksWait, 1, 50);
 
         // create gauge
-        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, key, 1e18));
-        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(key));
+        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, address(vault), 1e18));
+        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(address(vault)));
 
         // approve gauge
         vm.prank(gaugeControllerAdmin);
@@ -512,9 +466,8 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         beacon.broadcastVeBalance(address(this), 0, 0, 0);
 
         // stake liquidity in child gauge
-        IBunniToken bunniToken = bunniHub.getBunniToken(key);
-        bunniToken.approve(address(childGauge), type(uint256).max);
-        uint256 amount = bunniToken.balanceOf(address(this));
+        vault.approve(address(childGauge), type(uint).max);
+        uint256 amount = vault.balanceOf(address(this));
         childGauge.deposit(amount);
 
         // update gauge cap
@@ -533,7 +486,7 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
 
         // check balance
         uint256 expectedAmount = tokenAdmin.INITIAL_RATE() * (numWeeksWait - 1) * (1 weeks) * weightCap / 1e18; // first week has no rewards
-        assertApproxEqRel(mockToken.balanceOf(address(this)), expectedAmount, 1e12, "balance incorrect");
+        assertApproxEqRel(mockToken.balanceOf(address(this)), expectedAmount, 1e18, "balance incorrect");
     }
 
     function test_kickAfterTokenlessProductionChange() public {
@@ -553,8 +506,8 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         // - v/V < b/B (not at max boost)
 
         // create gauge
-        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, key, 1e18));
-        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(key));
+        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, address(vault), 1e18));
+        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(address(vault)));
 
         // approve gauge
         vm.prank(gaugeControllerAdmin);
@@ -583,16 +536,15 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         beacon.broadcastVeBalance(tester, 0, 0, 0);
 
         // stake liquidity in child gauge for both this and tester
-        IBunniToken bunniToken = bunniHub.getBunniToken(key);
-        bunniToken.transfer(tester, bunniToken.balanceOf(address(this)) * 3 / 10);
+        vault.transfer(tester, vault.balanceOf(address(this)) * 3 / 10);
 
         vm.startPrank(tester);
-        bunniToken.approve(address(childGauge), type(uint256).max);
-        childGauge.deposit(bunniToken.balanceOf(tester));
+        vault.approve(address(childGauge), type(uint256).max);
+        childGauge.deposit(vault.balanceOf(tester));
         vm.stopPrank();
 
-        bunniToken.approve(address(childGauge), type(uint256).max);
-        childGauge.deposit(bunniToken.balanceOf(address(this)));
+        vault.approve(address(childGauge), type(uint256).max);
+        childGauge.deposit(vault.balanceOf(address(this)));
 
         // cannot kick at this point
         vm.expectRevert();
@@ -617,106 +569,18 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
 
     function test_createGauge() external {
         // create gauge
-        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, key, 1e18));
-        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(key));
+        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, address(vault), 1e18));
+        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(address(vault)));
 
         // verify gauge state
         assertEq(rootGauge.is_killed(), false, "Root gauge killed at creation");
         assertEq(childGauge.is_killed(), false, "Child gauge killed at creation");
     }
 
-    function test_killOutOfRangeGauge() external {
-        // create new position to initialize tickLower in the pool
-        int24 tickLower = 100;
-        int24 tickUpper = 1000;
-        tokenA.mint(address(this), 1e18);
-        tokenB.mint(address(this), 1e18);
-        BunniKey memory k = BunniKey({pool: pool, tickLower: tickLower, tickUpper: tickUpper});
-        bunniHub.deployBunniToken(k);
-        bunniHub.deposit(
-            IBunniHub.DepositParams({
-                key: k,
-                amount0Desired: 1e18,
-                amount1Desired: 1e18,
-                amount0Min: 0,
-                amount1Min: 0,
-                deadline: block.timestamp,
-                recipient: address(this)
-            })
-        );
-
-        // create gauge
-        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(k));
-
-        // record
-        oracle.startRecording(address(pool), 100, tickUpper);
-        skip(RECORDING_MIN_LENGTH);
-        UniswapPoorOracle.PositionState state = oracle.finishRecording(address(pool), 100, tickUpper);
-        assertEq(uint256(state), uint256(UniswapPoorOracle.PositionState.OUT_OF_RANGE), "State not OUT_OF_RANGE");
-
-        // verify gauge state
-        assertEq(childGauge.is_killed(), true, "Out-of-range gauge hasn't been killed");
-    }
-
-    function test_reviveInRangeGauge() external {
-        // create gauge
-        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(key));
-
-        // make swap to move the price out of range
-        uint256 amountIn = 1e20;
-        tokenA.mint(address(this), amountIn);
-        ISwapRouter.ExactInputSingleParams memory swapParams = ISwapRouter.ExactInputSingleParams({
-            tokenIn: address(tokenA),
-            tokenOut: address(tokenB),
-            fee: FEE,
-            recipient: address(this),
-            deadline: block.timestamp,
-            amountIn: amountIn,
-            amountOutMinimum: 0,
-            sqrtPriceLimitX96: 0
-        });
-        router.exactInputSingle(swapParams);
-        (, int24 tick,,,,,) = pool.slot0();
-        assert(tick > TICK_UPPER || tick < TICK_LOWER);
-
-        // record
-        oracle.startRecording(address(pool), TICK_LOWER, TICK_UPPER);
-        skip(RECORDING_MIN_LENGTH);
-        UniswapPoorOracle.PositionState state = oracle.finishRecording(address(pool), TICK_LOWER, TICK_UPPER);
-        assertEq(uint256(state), uint256(UniswapPoorOracle.PositionState.OUT_OF_RANGE), "State not OUT_OF_RANGE");
-
-        // verify gauge state
-        assertEq(childGauge.is_killed(), true, "Out-of-range gauge hasn't been killed");
-
-        // make swap to move the price back into range
-        swapParams = ISwapRouter.ExactInputSingleParams({
-            tokenIn: address(tokenB),
-            tokenOut: address(tokenA),
-            fee: FEE,
-            recipient: address(this),
-            deadline: block.timestamp,
-            amountIn: tokenB.balanceOf(address(this)),
-            amountOutMinimum: 0,
-            sqrtPriceLimitX96: 0
-        });
-        router.exactInputSingle(swapParams);
-        (, tick,,,,,) = pool.slot0();
-        assert(tick <= TICK_UPPER && tick >= TICK_LOWER);
-
-        // record
-        oracle.startRecording(address(pool), TICK_LOWER, TICK_UPPER);
-        skip(RECORDING_MIN_LENGTH);
-        state = oracle.finishRecording(address(pool), TICK_LOWER, TICK_UPPER);
-        assertEq(uint256(state), uint256(UniswapPoorOracle.PositionState.IN_RANGE), "State not IN_RANGE");
-
-        // verify gauge state
-        assertEq(childGauge.is_killed(), false, "In-range gauge hasn't been revived");
-    }
-
     function test_adminKillGauge() external {
         // create gauge
-        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, key, 1e18));
-        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(key));
+        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, address(vault), 1e18));
+        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(address(vault)));
 
         // kill gauge
         rootGauge.set_killed(true);
@@ -731,8 +595,8 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         numWeeksWait = bound(numWeeksWait, 1, 50);
 
         // create gauge
-        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, key, 1e18));
-        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(key));
+        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, address(vault), 1e18));
+        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(address(vault)));
 
         // approve gauge
         vm.prank(gaugeControllerAdmin);
@@ -748,9 +612,8 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         beacon.broadcastVeBalance(address(this), 0, 0, 0);
 
         // stake liquidity in child gauge
-        IBunniToken bunniToken = bunniHub.getBunniToken(key);
-        bunniToken.approve(address(childGauge), type(uint256).max);
-        uint256 amount = bunniToken.balanceOf(address(this));
+        vault.approve(address(childGauge), type(uint).max);
+        uint256 amount = vault.balanceOf(address(this));
         childGauge.deposit(amount);
 
         // kill gauge
@@ -779,43 +642,6 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
 
         // check balance
         assertEq(mockToken.balanceOf(address(this)), 0, "received rewards while gauge was killed");
-    }
-
-    function test_adminUnkillOutOfRangeGauge() external {
-        // create gauge
-        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(key));
-
-        // make swap to move the price out of range
-        uint256 amountIn = 1e20;
-        tokenA.mint(address(this), amountIn);
-        ISwapRouter.ExactInputSingleParams memory swapParams = ISwapRouter.ExactInputSingleParams({
-            tokenIn: address(tokenA),
-            tokenOut: address(tokenB),
-            fee: FEE,
-            recipient: address(this),
-            deadline: block.timestamp,
-            amountIn: amountIn,
-            amountOutMinimum: 0,
-            sqrtPriceLimitX96: 0
-        });
-        router.exactInputSingle(swapParams);
-        (, int24 tick,,,,,) = pool.slot0();
-        assert(tick > TICK_UPPER || tick < TICK_LOWER);
-
-        // record
-        oracle.startRecording(address(pool), TICK_LOWER, TICK_UPPER);
-        skip(RECORDING_MIN_LENGTH);
-        UniswapPoorOracle.PositionState state = oracle.finishRecording(address(pool), TICK_LOWER, TICK_UPPER);
-        assertEq(uint256(state), uint256(UniswapPoorOracle.PositionState.OUT_OF_RANGE), "State not OUT_OF_RANGE");
-
-        // verify gauge state
-        assertEq(childGauge.is_killed(), true, "Out-of-range gauge hasn't been killed");
-
-        // admin unkill gauge
-        childGauge.unkillGauge();
-
-        // verify gauge state
-        assertEq(childGauge.is_killed(), false, "Gauge hasn't been unkilled");
     }
 
     /**
@@ -899,7 +725,7 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
     function test_rootGauge_randoCannotSetRelativeWeightCap(address rando, uint256 weightCap) external {
         vm.assume(rando != address(this));
 
-        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, key, 1e18));
+        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, address(vault), 1e18));
 
         // set cap
         vm.prank(rando);
@@ -910,7 +736,7 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
     function test_rootGauge_relativeWeightCapCannotExceedMax(uint256 weightCap) external {
         vm.assume(weightCap > 1e18);
 
-        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, key, 1e18));
+        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, address(vault), 1e18));
 
         // set cap
         vm.expectRevert();
@@ -920,7 +746,7 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
     function test_rootGauge_updateBridger(address newBridger) external {
         vm.assume(newBridger != address(bridger));
 
-        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, key, 1e18));
+        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, address(vault), 1e18));
 
         // update bridger in factory
         rootFactory.set_bridger(block.chainid, newBridger);
@@ -953,8 +779,8 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         newToken.mint(address(bridger), 1e36);
 
         // create gauge
-        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, key, 1e18));
-        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(key));
+        IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, address(vault), 1e18));
+        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(address(vault)));
 
         // approve gauge
         vm.prank(gaugeControllerAdmin);
@@ -969,9 +795,8 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         beacon.broadcastVeBalance(address(this), 0, 0, 0);
 
         // stake liquidity in child gauge
-        IBunniToken bunniToken = bunniHub.getBunniToken(key);
-        bunniToken.approve(address(childGauge), type(uint256).max);
-        uint256 amount = bunniToken.balanceOf(address(this));
+        vault.approve(address(childGauge), type(uint).max);
+        uint256 amount = vault.balanceOf(address(this));
         childGauge.deposit(amount);
 
         // claim rewards every week
@@ -987,7 +812,7 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
 
         // check balance
         uint256 expectedAmount = tokenAdmin.INITIAL_RATE() * (numWeeksWait - 1) * (1 weeks); // first week has no rewards
-        assertApproxEqRel(newToken.balanceOf(address(this)), expectedAmount, 1e12, "balance incorrect");
+        assertApproxEqRel(newToken.balanceOf(address(this)), expectedAmount, 1e18, "balance incorrect");
     }
 
     function test_childGaugeFactory_updateToken_cannotBeCalledByRando(address rando, address newToken) external {
@@ -1030,7 +855,7 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
     }
 
     function test_childGauge_rescueToken(uint256 amount, address recipient) external {
-        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(key));
+        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(address(vault)));
 
         vm.assume(address(childGauge) != recipient);
 
@@ -1048,7 +873,7 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
     {
         vm.assume(rando != address(this));
 
-        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(key));
+        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(address(vault)));
         TestERC20Mintable stuckToken = new TestERC20Mintable();
         stuckToken.mint(address(childGauge), amount);
 
@@ -1058,7 +883,7 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
     }
 
     function test_childGauge_rescueToken_cannotStealTokens(uint256 amount, address recipient) external {
-        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(key));
+        IChildGauge childGauge = IChildGauge(childFactory.deploy_gauge(address(vault)));
 
         // cannot steal core reward token
         mockToken.mint(address(childGauge), amount);
@@ -1066,10 +891,9 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         childGauge.rescue_token(address(mockToken), recipient);
 
         // cannot steal LP token
-        IBunniToken bunniToken = bunniHub.getBunniToken(key);
-        deal(address(bunniToken), address(childGauge), amount);
+        deal(address(vault), address(childGauge), amount);
         vm.expectRevert();
-        childGauge.rescue_token(address(bunniToken), recipient);
+        childGauge.rescue_token(address(vault), recipient);
 
         // cannot steal custom reward token
         TestERC20Mintable stuckToken = new TestERC20Mintable();
@@ -1097,31 +921,25 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         // create gauges
         IRootGauge[] memory rootGaugeList = new IRootGauge[](numGauges);
         IChildGauge[] memory childGaugeList = new IChildGauge[](numGauges);
-        BunniKey[] memory keyList = new BunniKey[](numGauges);
+        MockERC4626[] memory vaultList = new MockERC4626[](numGauges);
         for (uint256 i; i < numGauges; i++) {
-            BunniKey memory _key = BunniKey({
-                pool: pool,
-                tickLower: TICK_LOWER - int24(uint24(i + 1)) * pool.tickSpacing(),
-                tickUpper: TICK_UPPER + int24(uint24(i + 1)) * pool.tickSpacing()
+            MockERC4626 _vault = new MockERC4626();
+            vaultList[i] = _vault;
+            _vault.initialize(IERC20Upgradeable(address(new TestERC20Mintable())), "vault", "V");
+            address[8] memory swaps;
+            VaultMetadata memory metadata = VaultMetadata({
+                vault: address(_vault),
+                staking: address(0),
+                creator: address(this),
+                metadataCID: "",
+                swapTokenAddresses: swaps,
+                swapAddress: address(0),
+                exchange: 0
             });
-            keyList[i] = _key;
-            bunniHub.deployBunniToken(_key);
-            tokenA.mint(address(this), 1e18);
-            tokenB.mint(address(this), 1e18);
-            bunniHub.deposit(
-                IBunniHub.DepositParams({
-                    key: _key,
-                    amount0Desired: 1e18,
-                    amount1Desired: 1e18,
-                    amount0Min: 0,
-                    amount1Min: 0,
-                    deadline: block.timestamp,
-                    recipient: address(this)
-                })
-            );
-            IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, _key, 1e18));
+            vaultRegistry.registerVault(metadata);
+            IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, address(_vault), 1e18));
             rootGaugeList[i] = rootGauge;
-            childGaugeList[i] = IChildGauge(childFactory.deploy_gauge(_key));
+            childGaugeList[i] = IChildGauge(childFactory.deploy_gauge(address(_vault)));
 
             // approve gauge
             vm.prank(gaugeControllerAdmin);
@@ -1161,31 +979,25 @@ contract CrossChainE2ETest is Test, UniswapDeployer {
         // create gauges
         IRootGauge[] memory rootGaugeList = new IRootGauge[](numGauges);
         IChildGauge[] memory childGaugeList = new IChildGauge[](numGauges);
-        BunniKey[] memory keyList = new BunniKey[](numGauges);
+        MockERC4626[] memory vaultList = new MockERC4626[](numGauges);
         for (uint256 i; i < numGauges; i++) {
-            BunniKey memory _key = BunniKey({
-                pool: pool,
-                tickLower: TICK_LOWER - int24(uint24(i + 1)) * pool.tickSpacing(),
-                tickUpper: TICK_UPPER + int24(uint24(i + 1)) * pool.tickSpacing()
+            MockERC4626 _vault = new MockERC4626();
+            vaultList[i] = _vault;
+            _vault.initialize(IERC20Upgradeable(address(new TestERC20Mintable())), "vault", "V");
+            address[8] memory swaps;
+            VaultMetadata memory metadata = VaultMetadata({
+                vault: address(_vault),
+                staking: address(0),
+                creator: address(this),
+                metadataCID: "",
+                swapTokenAddresses: swaps,
+                swapAddress: address(0),
+                exchange: 0
             });
-            keyList[i] = _key;
-            bunniHub.deployBunniToken(_key);
-            tokenA.mint(address(this), 1e18);
-            tokenB.mint(address(this), 1e18);
-            bunniHub.deposit(
-                IBunniHub.DepositParams({
-                    key: _key,
-                    amount0Desired: 1e18,
-                    amount1Desired: 1e18,
-                    amount0Min: 0,
-                    amount1Min: 0,
-                    deadline: block.timestamp,
-                    recipient: address(this)
-                })
-            );
-            IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, _key, 1e18));
+            vaultRegistry.registerVault(metadata);
+            IRootGauge rootGauge = IRootGauge(rootFactory.deploy_gauge(block.chainid, address(_vault), 1e18));
             rootGaugeList[i] = rootGauge;
-            childGaugeList[i] = IChildGauge(childFactory.deploy_gauge(_key));
+            childGaugeList[i] = IChildGauge(childFactory.deploy_gauge(address(_vault)));
 
             // approve gauge
             vm.prank(gaugeControllerAdmin);

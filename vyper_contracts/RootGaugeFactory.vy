@@ -24,7 +24,7 @@ event BridgerUpdated:
 event DeployedGauge:
     _implementation: indexed(address)
     _chain_id: indexed(uint256)
-    _key: (address, int24, int24)
+    _vault: address
     _gauge: address
 
 event TransferOwnership:
@@ -99,11 +99,11 @@ def transmit_emissions_multiple(_gauge_list: DynArray[address, 64]):
 
 @payable
 @external
-def deploy_gauge(_chain_id: uint256, _key: (address, int24, int24), _relative_weight_cap: uint256) -> address:
+def deploy_gauge(_chain_id: uint256, _vault: address, _relative_weight_cap: uint256) -> address:
     """
     @notice Deploy a root liquidity gauge
     @param _chain_id The chain identifier of the counterpart child gauge
-    @param key The BunniKey of the gauge's LP token
+    @param _vault The address of the vault
     @param _relative_weight_cap The initial relative weight cap
     """
     bridger: address = self.get_bridger[_chain_id]
@@ -113,7 +113,7 @@ def deploy_gauge(_chain_id: uint256, _key: (address, int24, int24), _relative_we
     gauge: address = create_minimal_proxy_to(
         implementation,
         value=msg.value,
-        salt=keccak256(_abi_encode(_chain_id, _key))
+        salt=keccak256(_abi_encode(_chain_id, _vault))
     )
 
     idx: uint256 = self.get_gauge_count[_chain_id]
@@ -123,7 +123,7 @@ def deploy_gauge(_chain_id: uint256, _key: (address, int24, int24), _relative_we
 
     RootGauge(gauge).initialize(bridger, _chain_id, _relative_weight_cap)
 
-    log DeployedGauge(implementation, _chain_id, _key, gauge)
+    log DeployedGauge(implementation, _chain_id, _vault, gauge)
     return gauge
 
 

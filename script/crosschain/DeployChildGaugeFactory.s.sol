@@ -21,15 +21,13 @@ contract DeployChildGaugeFactoryScript is CREATE3Script, VyperDeployer {
         address token = vm.envAddress(string.concat("TOKEN_", block.chainid.toString()));
         address owner = vm.envAddress(string.concat("OWNER_", block.chainid.toString()));
 
-        string memory fixVersion = "1.0.1";
-
         childGaugeTemplate = IChildGauge(
             create3.deploy(
-                getCreate3ContractSalt("RootGauge", fixVersion),
+                getCreate3ContractSalt("RootGauge"),
                 bytes.concat(
                     compileContract("ChildGauge"),
                     abi.encode(
-                        getCreate3Contract("RootGaugeFactory", fixVersion), getCreate3Contract("UniswapPoorOracle")
+                        getCreate3Contract("RootGaugeFactory")
                     )
                 )
             )
@@ -37,11 +35,11 @@ contract DeployChildGaugeFactoryScript is CREATE3Script, VyperDeployer {
 
         childGaugeFactory = IChildGaugeFactory(
             create3.deploy(
-                getCreate3ContractSalt("RootGaugeFactory", fixVersion),
+                getCreate3ContractSalt("RootGaugeFactory"),
                 bytes.concat(
                     compileContract("ChildGaugeFactory"),
                     abi.encode(
-                        token, owner, vm.envAddress("BUNNI_HUB"), getCreate3Contract("VeRecipient"), childGaugeTemplate
+                        token, owner, vm.envAddress("VAULT_REGISTRY"), getCreate3Contract("VeRecipient"), childGaugeTemplate
                     )
                 )
             )

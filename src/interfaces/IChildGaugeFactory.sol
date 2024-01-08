@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "bunni/src/interfaces/IBunniHub.sol";
-
 interface IChildGaugeFactory {
-    function deploy_gauge(BunniKey calldata key) external returns (address);
+    function deploy_gauge(address vault) external returns (address);
     function set_voting_escrow(address _voting_escrow) external;
     function set_implementation(address _implementation) external;
     function commit_transfer_ownership(address _future_owner) external;

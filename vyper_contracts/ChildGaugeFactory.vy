@@ -8,17 +8,26 @@ from vyper.interfaces import ERC20
 
 
 interface ChildGauge:
-    def initialize(_lp_token: address, _manager: address, _position_key: bytes32): nonpayable
+    def initialize(_lp_token: address, _manager: address): nonpayable
     def integrate_fraction(_user: address) -> uint256: view
     def user_checkpoint(_user: address) -> bool: nonpayable
 
-interface BunniHub:
-    def getBunniToken(key: (address, int24, int24)) -> address: view
+struct VaultMetadata:
+    vault: address
+    staking: address
+    creator: address
+    metadataCID: String[100]
+    swapTokenAddresses: address[8]
+    swapAddress: address
+    exchange: uint256
+
+interface VaultRegistry:
+    def getVault(vault: address) -> VaultMetadata: view
 
 
 event DeployedGauge:
     _implementation: indexed(address)
-    _key: (address, int24, int24)
+    _vault: address
     _gauge: address
 
 event Minted:
@@ -43,7 +52,7 @@ event TransferOwnership:
     _new_owner: address
 
 
-BUNNI_HUB: immutable(BunniHub)
+VAULT_REGISTRY: immutable(VaultRegistry)
 
 
 get_implementation: public(address)
@@ -61,8 +70,8 @@ get_gauge_count: public(uint256)
 get_gauge: public(address[max_value(uint256)])
 
 @external
-def __init__(_token: address, _owner: address, _bunni_hub: BunniHub, _voting_escrow: address, _implementation: address):
-    BUNNI_HUB = _bunni_hub
+def __init__(_token: address, _owner: address, _vault_registry: VaultRegistry, _voting_escrow: address, _implementation: address):
+    VAULT_REGISTRY = _vault_registry
 
     self.token = _token
     log UpdateToken(empty(address), _token)
@@ -118,19 +127,17 @@ def mint_many(_gauges: DynArray[address, 64]) -> uint256:
 
 
 @external
-def deploy_gauge(_key: (address, int24, int24)) -> address:
+def deploy_gauge(_vault: address) -> address:
     """
     @notice Deploy a liquidity gauge
-    @param _key The BunniKey of the gauge's LP token
-    @param _manager The address to set as manager of the gauge
+    @param _vault The vault for which we create the gauge
     """
-    # check key corresponds to valid Bunni token
-    bunni_token: address = BUNNI_HUB.getBunniToken(_key)
-    assert bunni_token != empty(address) # dev: key should correspond to Bunni token
+    vault: VaultMetadata = VAULT_REGISTRY.getVault(_vault)
+    assert vault.vault != empty(address) # dev: _vault should be a valid vault
 
     implementation: address = self.get_implementation
     gauge: address = create_minimal_proxy_to(
-        implementation, salt=keccak256(_abi_encode(chain.id, _key))
+        implementation, salt=keccak256(_abi_encode(chain.id, _vault))
     )
 
     self.is_valid_gauge[gauge] = True
@@ -139,9 +146,9 @@ def deploy_gauge(_key: (address, int24, int24)) -> address:
     self.get_gauge[idx] = gauge
     self.get_gauge_count = idx + 1
 
-    ChildGauge(gauge).initialize(bunni_token, self.owner, keccak256(_abi_encode(_key)))
+    ChildGauge(gauge).initialize(_vault, self.owner)
 
-    log DeployedGauge(implementation, _key, gauge)
+    log DeployedGauge(implementation, _vault, gauge)
     return gauge
 
 
