@@ -13,19 +13,18 @@ contract DeployCrosschainRewardTransmitterScript is CREATE3Script {
         vm.startBroadcast(deployerPrivateKey);
 
         address admin = vm.envAddress("ADMIN");
-        string memory fixVersion = "1.0.1";
 
         transmitter = CrosschainRewardTransmitter(
             payable(
                 create3.deploy(
-                    getCreate3ContractSalt("CrosschainRewardTransmitter", fixVersion),
+                    getCreate3ContractSalt("CrosschainRewardTransmitter"),
                     bytes.concat(
                         type(CrosschainRewardTransmitter).creationCode,
                         abi.encode(
                             admin,
                             0x02854a16D39aD1B4b0Cbd60291B509Ce07dad5db,
                             getCreate3Contract("GaugeController"),
-                            getCreate3Contract("RootGaugeFactory", fixVersion)
+                            getCreate3Contract("RootGaugeFactory")
                         )
                     )
                 )
