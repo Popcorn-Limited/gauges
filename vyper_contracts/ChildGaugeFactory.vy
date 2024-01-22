@@ -132,6 +132,8 @@ def deploy_gauge(_vault: address) -> address:
     @notice Deploy a liquidity gauge
     @param _vault The vault for which we create the gauge
     """
+    assert msg.sender == self.owner
+
     vault: VaultMetadata = VAULT_REGISTRY.getVault(_vault)
     assert vault.vault != empty(address) # dev: _vault should be a valid vault
 

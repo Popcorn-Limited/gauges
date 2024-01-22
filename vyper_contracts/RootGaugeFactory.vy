@@ -106,6 +106,8 @@ def deploy_gauge(_chain_id: uint256, _vault: address, _relative_weight_cap: uint
     @param _vault The address of the vault
     @param _relative_weight_cap The initial relative weight cap
     """
+    assert msg.sender == self.owner
+
     bridger: address = self.get_bridger[_chain_id]
     assert bridger != empty(address)  # dev: chain id not supported
 
