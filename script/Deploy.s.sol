@@ -44,7 +44,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
 
 
             tokenAdmin = TokenAdmin(
-                create3.deploy(
+                createx.deployCreate3(
                     getCreate3ContractSalt("TokenAdmin"),
                     bytes.concat(
                         type(TokenAdmin).creationCode,
@@ -62,7 +62,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
         {
             address lockToken = vm.envAddress("BALANCER_POOL");
             votingEscrow = IVotingEscrow(
-                create3.deploy(
+                createx.deployCreate3(
                     getCreate3ContractSalt("VotingEscrow"),
                     bytes.concat(
                         compileContract("VotingEscrow"),
@@ -79,7 +79,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
         console2.log("VotingEscrow");
 
         gaugeController = IGaugeController(
-            create3.deploy(
+            createx.deployCreate3(
                 getCreate3ContractSalt("GaugeController"),
                 bytes.concat(
                     compileContract("GaugeController"),
@@ -90,7 +90,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
         console2.log("GaugeController");
 
         minter = Minter(
-            create3.deploy(
+            createx.deployCreate3(
                 getCreate3ContractSalt("Minter"),
                 bytes.concat(
                     type(Minter).creationCode,
@@ -103,7 +103,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
         address delegationProxy = getCreate3Contract("DelegationProxy");
 
         ILiquidityGauge liquidityGaugeTemplate = ILiquidityGauge(
-            create3.deploy(
+            createx.deployCreate3(
                 getCreate3ContractSalt("PopcornLiquidityGauge"),
                 bytes.concat(
                     compileContract("PopcornLiquidityGauge"),
@@ -118,7 +118,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
                 vm.envAddress("VAULT_REGISTRY")
             );
             factory = PopcornLiquidityGaugeFactory(
-                create3.deploy(
+                createx.deployCreate3(
                     getCreate3ContractSalt("PopcornLiquidityGaugeFactory2"),
                     bytes.concat(
                         type(PopcornLiquidityGaugeFactory).creationCode,
@@ -135,7 +135,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
                 ","
             );
             smartWalletChecker = SmartWalletChecker(
-                create3.deploy(
+                createx.deployCreate3(
                     getCreate3ContractSalt("SmartWalletChecker"),
                     bytes.concat(
                         type(SmartWalletChecker).creationCode,

@@ -13,7 +13,7 @@ contract DeployArbitrumBridgerScript is CREATE3Script, VyperDeployer {
 
         address admin = vm.envAddress("ADMIN");
 
-        bridger = create3.deploy(
+        bridger = createx.deployCreate3(
             getCreate3ContractSalt("ArbitrumBridger"),
             bytes.concat(
                 compileContract("bridgers/ArbitrumBridger"),

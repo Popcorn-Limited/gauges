@@ -17,14 +17,14 @@ contract DeployRootGaugeFactoryScript is CREATE3Script, VyperDeployer {
         address admin = vm.envAddress("ADMIN");
 
         rootGaugeTemplate = IRootGauge(
-            create3.deploy(
+            createx.deployCreate3(
                 getCreate3ContractSalt("RootGauge"),
                 bytes.concat(compileContract("RootGauge"), abi.encode(getCreate3Contract("Minter")))
             )
         );
 
         rootGaugeFactory = IRootGaugeFactory(
-            create3.deploy(
+            createx.deployCreate3(
                 getCreate3ContractSalt("RootGaugeFactory"),
                 bytes.concat(compileContract("RootGaugeFactory"), abi.encode(admin, rootGaugeTemplate))
             )

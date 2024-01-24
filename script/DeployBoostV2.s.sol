@@ -27,7 +27,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
         vm.startBroadcast(admin);
 
         address votingEscrow = getCreate3Contract("VotingEscrow");
-        boostV2 = create3.deploy(
+        boostV2 = createx.deployCreate3(
             getCreate3ContractSalt("BoostV2"),
             bytes.concat(
                 compileContract("BoostV2"),

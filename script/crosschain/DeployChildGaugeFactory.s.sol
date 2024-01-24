@@ -22,7 +22,7 @@ contract DeployChildGaugeFactoryScript is CREATE3Script, VyperDeployer {
         address owner = vm.envAddress(string.concat("OWNER_", block.chainid.toString()));
 
         childGaugeTemplate = IChildGauge(
-            create3.deploy(
+            createx.deployCreate3(
                 getCreate3ContractSalt("RootGauge"),
                 bytes.concat(
                     compileContract("ChildGauge"),
@@ -34,7 +34,7 @@ contract DeployChildGaugeFactoryScript is CREATE3Script, VyperDeployer {
         );
 
         childGaugeFactory = IChildGaugeFactory(
-            create3.deploy(
+            createx.deployCreate3(
                 getCreate3ContractSalt("RootGaugeFactory"),
                 bytes.concat(
                     compileContract("ChildGaugeFactory"),

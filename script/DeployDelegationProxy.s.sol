@@ -23,7 +23,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
 
         address votingEscrow = getCreate3Contract("VotingEscrow");
         address boostV2 = getCreate3Contract("BoostV2");
-        delegationProxy = create3.deploy(
+        delegationProxy = createx.deployCreate3(
             getCreate3ContractSalt("DelegationProxy"),
             bytes.concat(
                 compileContract("DelegationProxy"),

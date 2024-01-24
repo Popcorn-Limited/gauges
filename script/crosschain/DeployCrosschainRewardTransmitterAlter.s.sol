@@ -16,7 +16,7 @@ contract DeployCrosschainRewardTransmitterAlterScript is CREATE3Script {
 
         transmitter = CrosschainRewardTransmitterAlter(
             payable(
-                create3.deploy(
+                createx.deployCreate3(
                     getCreate3ContractSalt("CrosschainRewardTransmitterAlter"),
                     bytes.concat(
                         type(CrosschainRewardTransmitterAlter).creationCode,
