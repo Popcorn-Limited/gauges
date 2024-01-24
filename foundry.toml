@@ -25,6 +25,7 @@ goerli = "${RPC_URL_GOERLI}"
 mainnet = "${RPC_URL_MAINNET}"
 optimism = "${RPC_URL_OPTIMISM}"
 polygon = "${RPC_URL_POLYGON}"
+sepolia = "${RPC_URL_SEPOLIA}"
 
 [etherscan]
 goerli = { key = "${ETHERSCAN_KEY}", url = "https://api-goerli.etherscan.io/api?" }
@@ -34,3 +35,4 @@ gnosis = { key = "${GNOSISSCAN_KEY}", url = "https://api.gnosisscan.io/api" }
 mainnet = { key = "${ETHERSCAN_KEY}" }
 optimism = { key = "${OPTIMISM_ETHERSCAN_KEY}", url = "https://api-optimistic.etherscan.io/api" }
 polygon = { key = "${POLYGONSCAN_KEY}", url = "https://api.polygonscan.com/api" }
+sepolia = { key = "${SEPOLIA_KEY}", url = ""}
