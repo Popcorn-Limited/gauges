@@ -21,10 +21,6 @@ struct VaultMetadata:
     swapAddress: address
     exchange: uint256
 
-interface VaultRegistry:
-    def getVault(vault: address) -> VaultMetadata: view
-
-
 event DeployedGauge:
     _implementation: indexed(address)
     _vault: address
@@ -52,9 +48,6 @@ event TransferOwnership:
     _new_owner: address
 
 
-VAULT_REGISTRY: immutable(VaultRegistry)
-
-
 get_implementation: public(address)
 voting_escrow: public(address)
 token: public(address)
@@ -70,8 +63,7 @@ get_gauge_count: public(uint256)
 get_gauge: public(address[max_value(uint256)])
 
 @external
-def __init__(_token: address, _owner: address, _vault_registry: VaultRegistry, _voting_escrow: address, _implementation: address):
-    VAULT_REGISTRY = _vault_registry
+def __init__(_token: address, _owner: address, _voting_escrow: address, _implementation: address):
 
     self.token = _token
     log UpdateToken(empty(address), _token)
@@ -133,9 +125,6 @@ def deploy_gauge(_vault: address) -> address:
     @param _vault The vault for which we create the gauge
     """
     assert msg.sender == self.owner
-
-    vault: VaultMetadata = VAULT_REGISTRY.getVault(_vault)
-    assert vault.vault != empty(address) # dev: _vault should be a valid vault
 
     implementation: address = self.get_implementation
     gauge: address = create_minimal_proxy_to(
