@@ -18,16 +18,17 @@ contract DeployScript is CREATE3Script, VyperDeployer {
     constructor() CREATE3Script(vm.envString("VERSION")) {}
 
     function run() public returns (address delegationProxy) {
-        address admin = vm.envAddress("ADMIN");
-        vm.startBroadcast(admin);
 
-        address votingEscrow = getCreate3Contract("VotingEscrow");
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        address admin = vm.envAddress("ADMIN");
+        vm.startBroadcast(deployerPrivateKey);
+
         address boostV2 = getCreate3Contract("BoostV2");
         delegationProxy = createx.deployCreate3(
             getCreate3ContractSalt("DelegationProxy"),
             bytes.concat(
                 compileContract("DelegationProxy"),
-                abi.encode(votingEscrow, boostV2, admin, admin)
+                abi.encode(boostV2, admin, admin)
             )
         );
 

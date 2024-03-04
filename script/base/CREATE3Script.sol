@@ -14,34 +14,38 @@ abstract contract CREATE3Script is Script {
 
 
     function getCreate3Contract(string memory name) internal view virtual returns (address) {
+        bytes32 salt =  getCreate3ContractSalt(name);  
+
         uint256 deployerPrivateKey = uint256(vm.envBytes32("PRIVATE_KEY"));
         address deployer = vm.addr(deployerPrivateKey);
-        return createx.computeCreate3Address(getCreate3ContractSalt(name, deployer));
+        bytes32 guardedSalt = keccak256(abi.encodePacked(uint256(uint160(deployer)), salt));
+
+        return createx.computeCreate3Address(guardedSalt);
     }
 
     function getCreate3Contract(string memory name, string memory _version) internal view virtual returns (address) {
+        bytes32 salt =  getCreate3ContractSalt(name, _version);  
+
         uint256 deployerPrivateKey = uint256(vm.envBytes32("PRIVATE_KEY"));
         address deployer = vm.addr(deployerPrivateKey);
-        return createx.computeCreate3Address(getCreate3ContractSalt(name, _version, deployer));
+        bytes32 guardedSalt = keccak256(abi.encodePacked(uint256(uint160(deployer)), salt));
+
+        return createx.computeCreate3Address(guardedSalt);
     }
 
     function getCreate3ContractSalt(string memory name) internal view virtual returns (bytes32) {
-        uint256 deployerPrivateKey = uint256(vm.envBytes32("PRIVATE_KEY"));
-        address deployer = vm.addr(deployerPrivateKey);
-        return getCreate3ContractSalt(name, version, deployer);
+        return getCreate3ContractSalt(name, version);
     }
 
-    function getCreate3ContractSalt(string memory name, address deployer) internal view virtual returns (bytes32) {
-        return getCreate3ContractSalt(name, version, deployer);
-    }
-
-
-    function getCreate3ContractSalt(string memory name, string memory _version, address deployer)
+    function getCreate3ContractSalt(string memory name, string memory _version)
         internal
         view
         virtual
         returns (bytes32)
     {
+        uint256 deployerPrivateKey = uint256(vm.envBytes32("PRIVATE_KEY"));
+        address deployer = vm.addr(deployerPrivateKey);
+
         bytes32 salt = bytes32(
             abi.encodePacked(
                 deployer,
@@ -50,8 +54,7 @@ abstract contract CREATE3Script is Script {
             )
         );
 
-        bytes32 guardedSalt = keccak256(abi.encodePacked(uint256(uint160(deployer)), salt));
-        return guardedSalt;
+        return salt;
     }
 }
 

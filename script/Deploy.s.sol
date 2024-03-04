@@ -60,7 +60,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
         console2.log("tokenAdmin ", address(tokenAdmin));
 
         {
-            address lockToken = vm.envAddress("BALANCER_POOL");
+            address lockToken = vm.envAddress("LOCK_TOKEN");
             votingEscrow = IVotingEscrow(
                 createx.deployCreate3(
                     getCreate3ContractSalt("VotingEscrow"),
@@ -119,7 +119,7 @@ contract DeployScript is CREATE3Script, VyperDeployer {
             );
             factory = PopcornLiquidityGaugeFactory(
                 createx.deployCreate3(
-                    getCreate3ContractSalt("PopcornLiquidityGaugeFactory2"),
+                    getCreate3ContractSalt("PopcornLiquidityGaugeFactory"),
                     bytes.concat(
                         type(PopcornLiquidityGaugeFactory).creationCode,
                         abi.encode(liquidityGaugeTemplate, admin, vaultRegistry)

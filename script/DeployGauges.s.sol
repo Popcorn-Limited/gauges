@@ -10,8 +10,9 @@ contract DeployScript is CREATE3Script {
     constructor() CREATE3Script(vm.envString("VERSION")) {}
 
     function run() public returns (ILiquidityGauge[] memory gauges) {
-        address admin = vm.envAddress("ADMIN");
-        vm.startBroadcast(admin);
+
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        vm.startBroadcast(deployerPrivateKey);
 
         PopcornLiquidityGaugeFactory factory =
             PopcornLiquidityGaugeFactory(getCreate3Contract("PopcornLiquidityGaugeFactory"));

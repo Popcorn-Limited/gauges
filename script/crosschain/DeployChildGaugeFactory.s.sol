@@ -9,6 +9,8 @@ import {VyperDeployer} from "../../src/lib/VyperDeployer.sol";
 import {IChildGauge} from "../../src/interfaces/IChildGauge.sol";
 import {IChildGaugeFactory} from "../../src/interfaces/IChildGaugeFactory.sol";
 
+import "forge-std/Script.sol";
+
 contract DeployChildGaugeFactoryScript is CREATE3Script, VyperDeployer {
     using LibString for uint256;
 
@@ -39,7 +41,7 @@ contract DeployChildGaugeFactoryScript is CREATE3Script, VyperDeployer {
                 bytes.concat(
                     compileContract("ChildGaugeFactory"),
                     abi.encode(
-                        token, owner, vm.envAddress("VAULT_REGISTRY"), getCreate3Contract("VeRecipient"), childGaugeTemplate
+                        token, owner, vm.envAddress("VE_RECIPIENT"), childGaugeTemplate
                     )
                 )
             )

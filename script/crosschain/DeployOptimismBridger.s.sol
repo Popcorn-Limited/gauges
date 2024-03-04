@@ -11,13 +11,11 @@ contract DeployArbitrumBridgerScript is CREATE3Script, VyperDeployer {
         uint256 deployerPrivateKey = uint256(vm.envBytes32("PRIVATE_KEY"));
         vm.startBroadcast(deployerPrivateKey);
 
-        address admin = vm.envAddress("ADMIN");
-
         bridger = createx.deployCreate3(
-            getCreate3ContractSalt("ArbitrumBridger"),
+            getCreate3ContractSalt("OptimismBridger"),
             bytes.concat(
-                compileContract("bridgers/ArbitrumBridger"),
-                abi.encode(vm.envAddress("oVCX"), 1e5, 0.2 gwei, admin)
+                compileContract("bridgers/OptimismBridger"),
+                abi.encode(vm.envAddress("oVCX"), vm.envAddress("TOKEN_10"))
             )
         );
 
