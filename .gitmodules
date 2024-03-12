@@ -13,3 +13,6 @@
 [submodule "lib/create3-factory"]
 	path = lib/create3-factory
 	url = https://github.com/ZeframLou/create3-factory
+[submodule "lib/ve-beacon"]
+	path = lib/ve-beacon
+	url = https://github.com/timeless-fi/ve-beacon

@@ -53,11 +53,6 @@ interface ILiquidityGauge {
     function unkillGauge() external;
 
     /**
-     * @notice Uses the Uniswap Poor oracle to decide whether a gauge is alive
-     */
-    function makeGaugePermissionless() external;
-
-    /**
      * @notice Sets a new relative weight cap for the gauge.
      * The value shall be normalized to 1e18, and not greater than MAX_RELATIVE_WEIGHT_CAP.
      * @param relativeWeightCap New relative weight cap.
