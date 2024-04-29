@@ -11,6 +11,7 @@ remappings = [
   'openzeppelin-contracts-upgradeable/=lib/popcorn/lib/openzeppelin-contracts-upgradeable/contracts',
 ]
 verbosity = 1
+evm_version = "shanghai"
 
 # Extreme Fuzzing CI Profile :P
 [profile.ci]
