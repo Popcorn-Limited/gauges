@@ -3,17 +3,11 @@ pragma solidity ^0.8.13;
 
 import {CREATE3Script, console} from "./base/CREATE3Script.sol";
 import {ILiquidityGauge} from "../src/interfaces/ILiquidityGauge.sol";
-import {PopcornLiquidityGaugeFactory} from "../src/PopcornLiquidityGaugeFactory.sol";
-import {IGaugeController} from "../src/interfaces/IGaugeController.sol";
+import {IChildGaugeFactory} from "../src/interfaces/IChildGaugeFactory.sol";
 
 contract DeployScript is CREATE3Script {
-    PopcornLiquidityGaugeFactory factory =
-        PopcornLiquidityGaugeFactory(
-            0x8133cA3AB91B3FE3792992eA69720Ca6d3A92163
-        );
-
-    IGaugeController controller =
-        IGaugeController(0xD57d8EEC36F0Ba7D8Fd693B9D97e02D8353EB1F4);
+    IChildGaugeFactory factory =
+        IChildGaugeFactory(0x6aa03ebAb1e9CB8d44Fd79153d3a258FFd48169A);
 
     constructor() CREATE3Script(vm.envString("VERSION")) {}
 
@@ -21,13 +15,12 @@ contract DeployScript is CREATE3Script {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
-        // @dev Only include vaults deployed on ethereum
+        // @dev Only include vaults from the same chain
         address[] memory vaults = vm.envAddress("INITIAL_VAULTS", ",");
+
         gauges = new ILiquidityGauge[](vaults.length);
         for (uint256 i; i < vaults.length; ) {
-            gauges[i] = ILiquidityGauge(factory.create(vaults[i], 1e18));
-
-            controller.add_gauge(address(gauges[i]), 0, 1);
+            gauges[i] = ILiquidityGauge(factory.deploy_gauge(vaults[i]));
 
             gauges[i].set_tokenless_production(20);
 
