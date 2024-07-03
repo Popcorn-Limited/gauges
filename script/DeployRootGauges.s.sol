@@ -19,6 +19,8 @@ contract DeployScript is CREATE3Script {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
+        console.log("msg.sender: ", msg.sender);
+
         // ------ chainId to gauge type ------
         // chainId - gauge types
         // 1       - [0,1,2]
@@ -35,6 +37,7 @@ contract DeployScript is CREATE3Script {
 
         gauges = new ILiquidityGauge[](vaults.length);
         for (uint256 i; i < vaults.length; ) {
+            console.log("vault: ", vaults[i]);
             gauges[i] = ILiquidityGauge(
                 factory.deploy_gauge(chainId, vaults[i], 1e18)
             );

@@ -15,11 +15,14 @@ contract DeployScript is CREATE3Script {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
+        console.log("msg.sender: ", msg.sender);
+
         // @dev Only include vaults from the same chain
         address[] memory vaults = vm.envAddress("INITIAL_VAULTS", ",");
 
         gauges = new ILiquidityGauge[](vaults.length);
         for (uint256 i; i < vaults.length; ) {
+            console.log("vault: ", vaults[i]);
             gauges[i] = ILiquidityGauge(factory.deploy_gauge(vaults[i]));
 
             gauges[i].set_tokenless_production(20);
