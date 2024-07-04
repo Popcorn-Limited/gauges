@@ -68,7 +68,9 @@ interface ILiquidityGauge {
      * @notice Returns the gauge's relative weight for a given time, capped to its relative weight cap attribute.
      * @param time Timestamp in the past or present.
      */
-    function getCappedRelativeWeight(uint256 time) external view returns (uint256);
+    function getCappedRelativeWeight(
+        uint256 time
+    ) external view returns (uint256);
 
     function initialize(
         address lpToken,
@@ -91,6 +93,13 @@ interface ILiquidityGauge {
     function balanceOf(address account) external view returns (uint256);
 
     function claim_rewards() external;
+
+    function claim_rewards(address user) external;
+
+    function claimable_reward(
+        address user,
+        address rewardToken
+    ) external view returns (uint256);
 
     function set_tokenless_production(uint8) external;
 }
