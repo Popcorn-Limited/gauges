@@ -101,5 +101,12 @@ interface ILiquidityGauge {
         address rewardToken
     ) external view returns (uint256);
 
+    function add_reward(address rewardToken, address distributor) external;
+
+    function deposit_reward_token(
+        address rewardToken,
+        uint256 amount
+    ) external;
+
     function set_tokenless_production(uint8) external;
 }

@@ -7,6 +7,7 @@ import {IERC20} from "forge-std/interfaces/IERC20.sol";
 
 import {ILiquidityGauge} from "./interfaces/ILiquidityGauge.sol";
 
+/// @dev This contract is just deployed once to mitigate a configuration issue on the Compound USDC Gauge on Arbitrum
 contract Claimer {
     ILiquidityGauge public gauge;
     IERC20 public rewardToken;
