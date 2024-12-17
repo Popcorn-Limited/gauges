@@ -9,7 +9,12 @@ remappings = [
   # Foundry fails to compute the correct path. By adding it to the root
   # project's remappings we can work around the issue. If it's fixed in the future we should update the repo.
   'openzeppelin-contracts-upgradeable/=lib/popcorn/lib/openzeppelin-contracts-upgradeable/contracts',
+  '@layerzerolabs/oft-evm/=lib/devtools/packages/oft-evm/',
+  '@layerzerolabs/oapp-evm/=lib/devtools/packages/oapp-evm/',
+  '@layerzerolabs/lz-evm-protocol-v2/=lib/layerzero-v2/packages/layerzero-v2/evm/protocol',
+  '@popcorn/=lib/popcorn/'
 ]
+
 verbosity = 1
 evm_version = "shanghai"
 
