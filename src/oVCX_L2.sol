@@ -2,13 +2,13 @@
 
 pragma solidity ^0.8.22;
 
-import { OFT } from "@layerzerolabs/oft-evm/contracts/OFT.sol";
+import {OFT} from "@layerzerolabs/oft-evm/contracts/OFT.sol";
 
-// oVCX on L2: ERC20 + Layer Zero receiver 
+// oVCX on L2: ERC20 + Layer Zero receiver
 contract oVCXL2 is OFT {
     mapping(address => uint32) public supportedGauges;
 
-    // todo hardcode ovcx addr?
+    // todo check crosschain origin to be a supported gauge?
     constructor(
         string memory _name,
         string memory _symbol,

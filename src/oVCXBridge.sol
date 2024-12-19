@@ -8,8 +8,10 @@ import {IBridger} from "./interfaces/IBridger.sol";
 
 // Bridger contract to lock and bridge oVCX emissions to any chain
 // implements IBridger iface to be compatible with gauges
-contract oVCXBridge is OFTAdapter, IBridger {
+contract OVCXBridge is OFTAdapter, IBridger {
     mapping(address => uint32) public supportedGauges;
+
+    address public defaultGauge; // Todo
 
     // todo hardcode ovcx addr?
     constructor(
@@ -18,43 +20,34 @@ contract oVCXBridge is OFTAdapter, IBridger {
         address _owner
     ) OFTAdapter(_token, _lzEndpoint, _owner) {}
 
-    // set a layer zero endpoint ID for bridging gauge rewards
+    // whitelist a destination address (gauge)
     function addGauge(address gauge, uint32 destEid) external onlyOwner {
+        defaultGauge = gauge;
         supportedGauges[gauge] = destEid;
     }
 
-    // estimate msg.value needed for a a generic ovcx bridge call // TODO
-    function cost() external view returns (uint256) {}
+    // TODO
+    // implements IBridger iface - check the originator sender
+    function check(address) external view returns (bool) {
+        return true;
+    }
+
+    // estimate msg.value needed for a default bridge call // TODO
+    // implements IBridger iface
+    function cost() external view returns (uint256) {
+        return _quoteSend(defaultGauge, 1e18);
+    }
 
     // get msg.value necessary to bridge
     function quote(
         address destinationGauge,
         uint256 amount
     ) external view returns (uint256 value) {
-        uint32 destEid = supportedGauges[destinationGauge];
-        require(destEid != 0, "Add gauge");
-
-        _quoteSend(
-            SendParam(
-                destEid,
-                _addressToBytes32(destinationGauge),
-                amount,
-                amount,
-                hex"",
-                hex"",
-                hex""
-            ),
-            false
-        );
+        return _quoteSend(destinationGauge, amount);
     }
 
-    function bridge(
-        address token,
-        address dest,
-        uint256 amount
-    ) external payable {
-        // TODO token check ?
-
+    // bridges to the destination address via LZ
+    function bridge(address, address dest, uint256 amount) external payable {
         uint32 destEid = supportedGauges[dest];
         require(destEid != 0, "Add gauge");
 
@@ -77,25 +70,46 @@ contract oVCXBridge is OFTAdapter, IBridger {
         );
     }
 
+    // builds crosschain message and ask for a quote to LZ endpoint
     function _quoteSend(
-        SendParam memory _sendParam,
-        bool _payInLzToken
-    ) internal view returns (MessagingFee memory msgFee) {
+        address receiver,
+        uint256 amount
+    ) internal view returns (uint256) {
+        uint32 destinationEndpointId = supportedGauges[receiver];
+        require(destinationEndpointId != 0, "Add gauge");
+
+        SendParam memory sendParams = SendParam(
+            destinationEndpointId,
+            _addressToBytes32(receiver),
+            amount,
+            amount,
+            hex"",
+            hex"",
+            hex""
+        );
+
         // simulate a debit call
-        (uint256 amountSendLD, uint256 amountReceivedLD) = _debitView(
-            _sendParam.amountLD,
-            _sendParam.minAmountLD,
-            _sendParam.dstEid
+        (uint256 amountSendLD, ) = _debitView(
+            sendParams.amountLD,
+            sendParams.minAmountLD,
+            sendParams.dstEid
         );
 
         // build LZ message and options
         (bytes memory message, bytes memory options) = _getMessageAndOptions(
-            _sendParam.to,
+            sendParams.to,
             amountSendLD
         );
 
-        // Calculates the LayerZero fee
-        return _quote(_sendParam.dstEid, message, options, _payInLzToken);
+        // quote LZ endpoint for a fee value
+        MessagingFee memory fee = _quote(
+            sendParams.dstEid,
+            message,
+            options,
+            false
+        );
+
+        return fee.nativeFee;
     }
 
     function _getMessageAndOptions(
