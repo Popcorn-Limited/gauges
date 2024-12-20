@@ -8,12 +8,11 @@ import {IBridger} from "./interfaces/IBridger.sol";
 
 // Bridger contract to lock and bridge oVCX emissions to any chain
 // implements IBridger iface to be compatible with gauges
-contract OVCXBridge is OFTAdapter, IBridger {
+contract oVCXSender is OFTAdapter, IBridger {
     mapping(address => uint32) public supportedGauges;
 
-    address public defaultGauge; // Todo
+    address public defaultGauge; // used to estimate a "default" bridging cost
 
-    // todo hardcode ovcx addr?
     constructor(
         address _token,
         address _lzEndpoint,
@@ -22,23 +21,32 @@ contract OVCXBridge is OFTAdapter, IBridger {
 
     // whitelist a destination address (gauge)
     function addGauge(address gauge, uint32 destEid) external onlyOwner {
-        defaultGauge = gauge;
+        if(defaultGauge == address(0)) 
+            defaultGauge = gauge; 
+
         supportedGauges[gauge] = destEid;
     }
 
-    // TODO
+    // update default gauge
+    function setDefaultGauge(address gauge, uint32 destEid) external onlyOwner {
+        defaultGauge = gauge;
+
+        supportedGauges[gauge] = destEid;
+    }
+
+    // called by RootGaugeFactory with msg.sender originating the tx
     // implements IBridger iface - check the originator sender
     function check(address) external view returns (bool) {
         return true;
     }
 
-    // estimate msg.value needed for a default bridge call // TODO
+    // called by RootGaugeFactory to estimate msg.value necessary for bridging
     // implements IBridger iface
     function cost() external view returns (uint256) {
         return _quoteSend(defaultGauge, 1e18);
     }
 
-    // get msg.value necessary to bridge
+    // get msg.value necessary to bridge to a speficic chain
     function quote(
         address destinationGauge,
         uint256 amount

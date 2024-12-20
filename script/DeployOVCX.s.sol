@@ -2,19 +2,20 @@
 pragma solidity ^0.8.25;
 
 import {Script, console} from "forge-std/Script.sol";
-import {OVCXBridge} from "../src/oVCXBridge.sol";
-import {oVCXL2} from "../src/oVCX_L2.sol";
+import {oVCXSender} from "../src/oVCX_Sender.sol";
+import {oVCXRecipient} from "../src/oVCX_Recipient.sol";
 
 // 1 - DeployOVCXBridge on root chain
-// 2 - WhitelistReceiver on root chain
+// 2 - WhitelistDestination on root chain
 // 3 - DeployOVCXL2 on recipient chain
 // 4 - SetReceiverPeer on root chain
+// 5 - WhitelistReceiver on recipient chain
 
 // ------------------------------- ROOT LZ APP ------------------------------- //
 
 // deploy LZ oVCX Root bridge
 contract DeployOVCXBridge is Script {
-    function run() public returns (OVCXBridge bridge) {
+    function run() public returns (oVCXSender bridge) {
         vm.startBroadcast();
         console.log("msg.sender:", msg.sender);
 
@@ -30,27 +31,25 @@ contract DeployOVCXBridge is Script {
 
         // deploy
         address owner = msg.sender;
-        bridge = new OVCXBridge(tokenToBridge, lzEndpoint, owner);
+        bridge = new oVCXSender(tokenToBridge, lzEndpoint, owner);
 
         vm.stopBroadcast();
     }
 }
 
 // to whitelist new address that can receive crosschain token from bridge
-contract WhitelistReceiver is Script {
+contract WhitelistDestination is Script {
     function run() public {
         vm.startBroadcast();
         console.log("msg.sender:", msg.sender);
 
         // initialize bridge
-        OVCXBridge bridge = OVCXBridge(
-            address(0x545C512775aad7541C9388E0cBF1aD300658Ee92)
+        oVCXSender bridge = oVCXSender(
+            address(0x3C54b43FEC8f796911ef7e74A375aE9d8E5c2f51)
         ); // modify
 
         // whitelist receiver and LZ endpoint id
-        address receiverToWhitelist = address(
-            0x9bE75Bc132923847290677328b8FFB15d3081f2c
-        ); // modify
+        address receiverToWhitelist = address(0); // modify
         uint32 destinationEndpointId = 40232; // modify
 
         bridge.addGauge(receiverToWhitelist, destinationEndpointId);
@@ -66,14 +65,14 @@ contract SetReceiverPeer is Script {
         console.log("msg.sender:", msg.sender);
 
         // initialize bridge
-        OVCXBridge bridge = OVCXBridge(
-            address(0x545C512775aad7541C9388E0cBF1aD300658Ee92)
+        oVCXSender bridge = oVCXSender(
+            address(0x3C54b43FEC8f796911ef7e74A375aE9d8E5c2f51)
         ); // modify
 
         // set LZ peer to receiver app
         uint32 destinationEndpointId = 40232; // LZ receiver endpoint ID
         address destinationLZPeer = address(
-            0x870C872320d599fE6C9158C9DddeA01A08F2aE1c
+            0x8f3C2301238e3e03C0e402aB078F9aBcfF422ADD
         ); // LZ receiver app
 
         bridge.setPeer(
@@ -93,7 +92,7 @@ contract SetReceiverPeer is Script {
 
 // deploys oVCX on L2 and sets peer with root oVCX bridge
 contract DeployOVCXL2 is Script {
-    function run() public returns (oVCXL2 oVCX) {
+    function run() public returns (oVCXRecipient oVCX) {
         uint32 receiverEndpointID = 40232; // LZ endpointID of the receiver being deployed
         uint32 rootEndpointID = 40231; // LZ endpointID of the root bridge
 
@@ -106,10 +105,10 @@ contract DeployOVCXL2 is Script {
         ); // modify
 
         // root bridge address
-        address bridge = address(0x545C512775aad7541C9388E0cBF1aD300658Ee92); // modify
+        address bridge = address(0x3C54b43FEC8f796911ef7e74A375aE9d8E5c2f51); // modify
 
         // deploy L2 oVCX - sets msg.sender as owner
-        oVCX = new oVCXL2("VCX call option token", "oVCX", lzEndpoint);
+        oVCX = new oVCXRecipient("VCX call option token", "oVCX", lzEndpoint);
 
         // set peer with root bridge
         oVCX.setPeer(rootEndpointID, addressToBytes32(bridge));
@@ -121,3 +120,24 @@ contract DeployOVCXL2 is Script {
         return bytes32(uint256(uint160(_addr)));
     }
 }
+
+// to whitelist new address that can receive crosschain token from bridge
+contract WhitelistReceiver is Script {
+    function run() public {
+        vm.startBroadcast();
+        console.log("msg.sender:", msg.sender);
+
+        // initialize recipient contract
+        oVCXRecipient receiverBridge = oVCXRecipient(
+            address(0x8f3C2301238e3e03C0e402aB078F9aBcfF422ADD)
+        ); // modify
+
+        // whitelist receiver and LZ endpoint id
+        address receiverToWhitelist = address(0); // modify
+        uint32 sourceEndpointId = 40231; // modify
+
+        receiverBridge.addGauge(receiverToWhitelist, sourceEndpointId);
+
+        vm.stopBroadcast();
+    }
+} 
